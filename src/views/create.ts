@@ -1,5 +1,16 @@
 import { extractGame } from '../ai/extract';
-import { IDEAS, SUGGESTED_GAMES, assistantEcho, fixPrompt, manualPrompt, refinePrompt, systemPrompt, userPrompt, type ChatMessage, type MashupRequest } from '../ai/prompt';
+import {
+  IDEAS,
+  SUGGESTED_GAMES,
+  assistantEcho,
+  fixPrompt,
+  manualPrompt,
+  refinePrompt,
+  systemPrompt,
+  userPrompt,
+  type ChatMessage,
+  type MashupRequest,
+} from '../ai/prompt';
 import { generate, providerInfo, providerReady } from '../ai/providers';
 import { appUrl, encodeShare } from '../data/share';
 import { Creation, getCreation, getSettings, modelFor, newId, saveCreation } from '../data/store';
@@ -29,7 +40,11 @@ export const createView: View = async (root, route) => {
   const list = h('datalist', { id: 'games-list' }, ...SUGGESTED_GAMES.map((g) => h('option', { value: g })));
   const gameA = h('input', { class: 'input', list: 'games-list', placeholder: 'e.g. Minecraft', value: draft?.games[0] ?? q.get('a') ?? '', maxlength: 80 });
   const gameB = h('input', { class: 'input', list: 'games-list', placeholder: 'e.g. Skyrim', value: draft?.games[1] ?? q.get('b') ?? '', maxlength: 80 });
-  const twist = h('textarea', { class: 'input', placeholder: 'Optional: how should they combine? e.g. "Play Skyrim as a Minecraft player: mine, build and fight dragons"', maxlength: 600 });
+  const twist = h('textarea', {
+    class: 'input',
+    placeholder: 'Optional: how should they combine? e.g. "Play Skyrim as a Minecraft player: mine, build and fight dragons"',
+    maxlength: 600,
+  });
   twist.value = draft?.twist ?? q.get('twist') ?? '';
   const multi = h('input', { type: 'checkbox' });
   multi.checked = draft?.multiplayer ?? false;
@@ -82,14 +97,24 @@ export const createView: View = async (root, route) => {
   const preview = h('div', { class: 'preview' });
   const status = h('div', { class: 'progress' });
   const result = h('div');
-  const refineInput = h('textarea', { class: 'input', placeholder: 'Change something: "make it harder", "add a boss", "use pixel art", "add a double jump"…', style: 'min-height:70px' });
+  const refineInput = h('textarea', {
+    class: 'input',
+    placeholder: 'Change something: "make it harder", "add a boss", "use pixel art", "add a double jump"…',
+    style: 'min-height:70px',
+  });
 
   const showEmpty = () => {
     preview.replaceChildren(
       h(
         'div',
         { class: 'empty' },
-        h('div', null, h('div', { style: 'font-size:3rem' }, '✨'), h('p', null, 'Your mashup will appear here.'), h('p', { class: 'hint' }, 'Pick two games, add a twist and hit Generate.')),
+        h(
+          'div',
+          null,
+          h('div', { style: 'font-size:3rem' }, '✨'),
+          h('p', null, 'Your mashup will appear here.'),
+          h('p', { class: 'hint' }, 'Pick two games, add a twist and hit Generate.'),
+        ),
       ),
     );
   };
@@ -114,53 +139,66 @@ export const createView: View = async (root, route) => {
     const d = draft;
     result.replaceChildren(
       ...nodes(
-      h('h2', { style: 'margin-top:14px' }, d.title),
-      d.tagline ? h('p', { style: 'color:var(--muted)' }, d.tagline) : null,
-      lastError
-        ? h(
-            'div',
-            { class: 'card', style: 'border-color:var(--bad);margin-bottom:12px' },
-            h('p', { class: 'err', style: 'margin:0 0 8px' }, `⚠️ ${lastError}`),
-            btn('Fix with AI', { class: 'small primary', icon: 'wand', onClick: () => void runAI('fix', fixPrompt(lastError)) }),
-          )
-        : null,
-      h(
-        'div',
-        { class: 'btn-row', style: 'margin-bottom:14px' },
-        btn('Play fullscreen', { class: 'primary', icon: 'play', href: `#/play/lib/${d.id}` }),
-        d.multiplayer ? btn('Play with friends', { class: 'cool', icon: 'users', href: `#/play/lib/${d.id}?host=1` }) : null,
-        btn('Share link', {
-          icon: 'share',
-          onClick: async () => {
-            const payload = await encodeShare({ v: 1, title: d.title, tagline: d.tagline, games: d.games, twist: d.twist, html: d.html, multiplayer: d.multiplayer });
-            const url = appUrl(`/s/${payload}`);
-            if (url.length > 60000) toast('Heads up: this game is big, some chat apps may cut the link. Download the file instead.', 4000);
-            await shareLink(url, d.title, `${d.title} — a ${d.games.join(' × ')} mashup made with Combiner`);
+        h('h2', { style: 'margin-top:14px' }, d.title),
+        d.tagline ? h('p', { style: 'color:var(--muted)' }, d.tagline) : null,
+        lastError
+          ? h(
+              'div',
+              { class: 'card', style: 'border-color:var(--bad);margin-bottom:12px' },
+              h('p', { class: 'err', style: 'margin:0 0 8px' }, `⚠️ ${lastError}`),
+              btn('Fix with AI', { class: 'small primary', icon: 'wand', onClick: () => void runAI('fix', fixPrompt(lastError)) }),
+            )
+          : null,
+        h(
+          'div',
+          { class: 'btn-row', style: 'margin-bottom:14px' },
+          btn('Play fullscreen', { class: 'primary', icon: 'play', href: `#/play/lib/${d.id}` }),
+          d.multiplayer ? btn('Play with friends', { class: 'cool', icon: 'users', href: `#/play/lib/${d.id}?host=1` }) : null,
+          btn('Share link', {
+            icon: 'share',
+            onClick: async () => {
+              const payload = await encodeShare({
+                v: 1,
+                title: d.title,
+                tagline: d.tagline,
+                games: d.games,
+                twist: d.twist,
+                html: d.html,
+                multiplayer: d.multiplayer,
+              });
+              const url = appUrl(`/s/${payload}`);
+              if (url.length > 60000) toast('Heads up: this game is big, some chat apps may cut the link. Download the file instead.', 4000);
+              await shareLink(url, d.title, `${d.title} — a ${d.games.join(' × ')} mashup made with Combiner`);
+            },
+          }),
+          btn('', {
+            class: 'icon',
+            icon: 'download',
+            title: 'Download .html',
+            onClick: () => download(`${d.title.replace(/[^\w-]+/g, '-').toLowerCase() || 'mashup'}.html`, d.html),
+          }),
+          d.history?.length
+            ? btn('Undo', {
+                icon: 'refresh',
+                class: 'ghost',
+                onClick: async () => {
+                  const prev = d.history!.shift()!;
+                  d.html = prev;
+                  await saveCreation(d);
+                  mount(d.html);
+                  renderResult();
+                },
+              })
+            : null,
+        ),
+        h('label', { class: 'field' }, h('span', null, 'Refine it'), refineInput),
+        btn('Apply change', {
+          icon: 'wand',
+          onClick: () => {
+            if (!refineInput.value.trim()) return refineInput.focus();
+            void runAI('refine', refinePrompt(refineInput.value));
           },
         }),
-        btn('', { class: 'icon', icon: 'download', title: 'Download .html', onClick: () => download(`${d.title.replace(/[^\w-]+/g, '-').toLowerCase() || 'mashup'}.html`, d.html) }),
-        d.history?.length
-          ? btn('Undo', {
-              icon: 'refresh',
-              class: 'ghost',
-              onClick: async () => {
-                const prev = d.history!.shift()!;
-                d.html = prev;
-                await saveCreation(d);
-                mount(d.html);
-                renderResult();
-              },
-            })
-          : null,
-      ),
-      h('label', { class: 'field' }, h('span', null, 'Refine it'), refineInput),
-      btn('Apply change', {
-        icon: 'wand',
-        onClick: () => {
-          if (!refineInput.value.trim()) return refineInput.focus();
-          void runAI('refine', refinePrompt(refineInput.value));
-        },
-      }),
       ),
     );
   };
@@ -204,7 +242,9 @@ export const createView: View = async (root, route) => {
       h(
         'p',
         { style: 'color:var(--ok);font-weight:700' },
-        g.complete ? '✓ Saved to your library.' : '⚠️ The reply was cut off before the end — the game may not work. Try “Refine: finish the code” or another model.',
+        g.complete
+          ? '✓ Saved to your library.'
+          : '⚠️ The reply was cut off before the end — the game may not work. Try “Refine: finish the code” or another model.',
       ),
     );
     refineInput.value = '';
@@ -240,7 +280,14 @@ export const createView: View = async (root, route) => {
     const statusLine = h('span', null, mode === 'new' ? 'Designing your mashup…' : 'Updating the game…');
     const thinkingEl = h('div', { class: 'thinking' });
     status.replaceChildren(
-      h('div', { style: 'display:flex;gap:10px;align-items:center' }, h('div', { class: 'spinner' }), statusLine, h('div', { class: 'spacer', style: 'flex:1' }), btn('Cancel', { class: 'small ghost', onClick: () => ctrl.abort() })),
+      h(
+        'div',
+        { style: 'display:flex;gap:10px;align-items:center' },
+        h('div', { class: 'spinner' }),
+        statusLine,
+        h('div', { class: 'spacer', style: 'flex:1' }),
+        btn('Cancel', { class: 'small ghost', onClick: () => ctrl.abort() }),
+      ),
       thinkingEl,
     );
     setBusy(true);
@@ -284,7 +331,11 @@ export const createView: View = async (root, route) => {
     { class: 'card', style: 'margin-top:14px' },
     h('summary', { style: 'cursor:pointer;font-weight:800' }, '📋 Free mode: use any chatbot'),
     h('p', { class: 'hint', style: 'margin-top:10px' }, '1. Copy the prompt. 2. Paste it into a free chatbot. 3. Paste its answer here and press Load.'),
-    h('div', { class: 'btn-row', style: 'margin-bottom:10px' }, ...CHATBOTS.map(([name, url]) => h('a', { class: 'btn small', href: url, target: '_blank', rel: 'noopener noreferrer' }, name))),
+    h(
+      'div',
+      { class: 'btn-row', style: 'margin-bottom:10px' },
+      ...CHATBOTS.map(([name, url]) => h('a', { class: 'btn small', href: url, target: '_blank', rel: 'noopener noreferrer' }, name)),
+    ),
     pasteArea,
     h(
       'div',
@@ -321,7 +372,11 @@ export const createView: View = async (root, route) => {
         'section',
         { class: 'hero' },
         h('h1', null, 'Create with ', h('span', { class: 'grad-text' }, 'AI')),
-        h('p', { class: 'lead' }, 'Name any two games — real or made up — and get a playable mashup that runs on phones and PCs. Refine it by chatting, then share it with a link.'),
+        h(
+          'p',
+          { class: 'lead' },
+          'Name any two games — real or made up — and get a playable mashup that runs on phones and PCs. Refine it by chatting, then share it with a link.',
+        ),
       ),
       h(
         'div',

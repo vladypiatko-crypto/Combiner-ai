@@ -20,7 +20,9 @@ function shades(color: string, step: number): string[] {
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  s = [-2, -1, 0, 1, 2].map((k) => k * step).map((d) => `rgb(${Math.max(0, Math.min(255, r + d))},${Math.max(0, Math.min(255, g + d))},${Math.max(0, Math.min(255, b + d))})`);
+  s = [-2, -1, 0, 1, 2]
+    .map((k) => k * step)
+    .map((d) => `rgb(${Math.max(0, Math.min(255, r + d))},${Math.max(0, Math.min(255, g + d))},${Math.max(0, Math.min(255, b + d))})`);
   shadeCache.set(key, s);
   return s;
 }
@@ -103,7 +105,18 @@ export function renderGame(game: Game, ctx: Ctx, cw: number, ch: number, dpr: nu
   for (const [, g] of game.ghosts) {
     ctx.save();
     ctx.globalAlpha = 0.5;
-    const pose = { ...poseFromHero(game.hero), x: g.x, y: g.y, face: g.face, fx: g.face, fy: 0, hop: 0, power: 0, attack: { kind: '', t: 0, dx: 1, dy: 0 }, moving: true };
+    const pose = {
+      ...poseFromHero(game.hero),
+      x: g.x,
+      y: g.y,
+      face: g.face,
+      fx: g.face,
+      fy: 0,
+      hop: 0,
+      power: 0,
+      attack: { kind: '', t: 0, dx: 1, dy: 0 },
+      moving: true,
+    };
     if (game.heroDef.move[L.view] === 'grid') {
       ctx.fillStyle = g.color;
       ctx.beginPath();
@@ -167,7 +180,7 @@ function drawDecor(game: Game, ctx: Ctx, cw: number, ch: number, s: number): voi
       for (let i = 0; i < 9; i++) {
         const x = ((rand(i, 1) * 3000 - game.cam.x * 0.35) * s) % span;
         const px = x < -100 * s ? x + span : x;
-        const py = (rand(i, 2) * 0.35 * ch) + 10 * s;
+        const py = rand(i, 2) * 0.35 * ch + 10 * s;
         const r = (8 + rand(i, 3) * 8) * s;
         ctx.beginPath();
         ctx.arc(px, py, r, 0, Math.PI * 2);
@@ -223,7 +236,7 @@ export function renderOverlay(game: Game, ctx: Ctx, cw: number, ch: number, dpr:
   for (let i = 0; i < 70; i++) {
     const sp = 18 + (i % 7) * 6;
     const x = ((i * 137.5 + Math.sin(game.time + i) * 12) * dpr + game.time * 8 * dpr - game.cam.x * 0.6 * dpr) % cw;
-    const y = ((i * 89.3) * dpr + game.time * sp * dpr - game.cam.y * 0.6 * dpr) % ch;
+    const y = (i * 89.3 * dpr + game.time * sp * dpr - game.cam.y * 0.6 * dpr) % ch;
     const sz = (1 + (i % 3)) * dpr;
     ctx.fillRect(x < 0 ? x + cw : x, y < 0 ? y + ch : y, sz, sz);
   }

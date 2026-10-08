@@ -56,8 +56,7 @@ export function hashString(s: string): number {
 
 export const clamp = (v: number, a: number, b: number) => (v < a ? a : v > b ? b : v);
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-export const approach = (v: number, target: number, step: number) =>
-  v < target ? Math.min(v + step, target) : Math.max(v - step, target);
+export const approach = (v: number, target: number, step: number) => (v < target ? Math.min(v + step, target) : Math.max(v - step, target));
 
 export function len(x: number, y: number): number {
   return Math.sqrt(x * x + y * y);

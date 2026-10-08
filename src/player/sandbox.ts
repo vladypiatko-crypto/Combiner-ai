@@ -11,7 +11,7 @@ export interface ControlsMeta {
 /** Read `<meta name="combiner-controls" content="a:Jump b:Fire">` from a game. */
 export function parseControls(html: string): ControlsMeta {
   const m = /<meta[^>]+name=["']combiner-controls["'][^>]*>/i.exec(html);
-  const content = m ? /content=["']([^"']*)["']/i.exec(m[0])?.[1] ?? '' : '';
+  const content = m ? (/content=["']([^"']*)["']/i.exec(m[0])?.[1] ?? '') : '';
   const tokens = content.trim().split(/\s+/).filter(Boolean);
   const buttons = tokens.map((t) => /^([abc]):(.+)$/i.exec(t)).filter((m): m is RegExpExecArray => !!m);
   if (tokens.some((t) => t.toLowerCase() === 'touch') && !buttons.length) return { touch: true, labels: {} };
@@ -23,7 +23,8 @@ export function parseControls(html: string): ControlsMeta {
 
 /** Insert the Combiner SDK as the very first script of the document. */
 export function injectSdk(html: string): string {
-  const tag = `<script>${SDK_SOURCE}</script>`;
+  // One line, so error line numbers still match the game's own source.
+  const tag = `<script>${SDK_SOURCE.replace(/\s*\n\s*/g, ' ')}</script>`;
   const viewport = /<meta[^>]+name=["']viewport["']/i.test(html)
     ? ''
     : '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">';
@@ -52,7 +53,11 @@ export class SandboxRunner {
   private listener: (e: MessageEvent) => void;
   private lastInput = '';
 
-  constructor(container: HTMLElement, html: string, private events: SandboxEvents = {}) {
+  constructor(
+    container: HTMLElement,
+    html: string,
+    private events: SandboxEvents = {},
+  ) {
     this.iframe = h('iframe', {
       title: 'Game',
       sandbox: 'allow-scripts allow-pointer-lock',

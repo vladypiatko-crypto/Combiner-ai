@@ -1,34 +1,9 @@
-import {
-  BLOCK,
-  BREAK,
-  Ent,
-  Particle,
-  Rect,
-  Rng,
-  TILE,
-  clamp,
-  hashString,
-  isBreakable,
-  len,
-  lerp,
-  makeEnt,
-  overlap,
-} from './core';
+import { BLOCK, BREAK, Ent, Particle, Rect, Rng, TILE, clamp, hashString, isBreakable, len, lerp, makeEnt, overlap } from './core';
 import { Body, Level, findFreeSpot } from './level';
 import { HEROES, WORLDS } from './registry';
 import { updateHero, heroHitsEnemy } from './heroes';
 import { updateEnt } from './enemies';
-import {
-  ABILITY_LABEL,
-  Ghost,
-  GameEvent,
-  GoalState,
-  HeroDef,
-  Input,
-  NO_INPUT,
-  SfxName,
-  WorldDef,
-} from './types';
+import { ABILITY_LABEL, Ghost, GameEvent, GoalState, HeroDef, Input, NO_INPUT, SfxName, WorldDef } from './types';
 
 export class Hero implements Body {
   x = 0;

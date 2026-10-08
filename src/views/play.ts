@@ -29,14 +29,15 @@ interface PlayContext {
 /** Resolve a #/play/... route into something playable. */
 async function resolve(route: Route): Promise<PlayContext> {
   const [, a, b] = route.path;
+  const host = route.query.get('host') === '1';
   if (a === 'lib' && b) {
     const c = await getCreation(b);
     if (!c) throw new Error('That game is not in your library on this device.');
-    return { source: { kind: 'html', title: c.title, html: c.html, games: c.games }, title: c.title, libId: c.id };
+    return { source: { kind: 'html', title: c.title, html: c.html, games: c.games }, title: c.title, libId: c.id, host };
   }
   if (a === 's' && b) {
     const s = await decodeShare(b);
-    return { source: { kind: 'html', title: s.title, html: s.html, games: s.games }, title: s.title };
+    return { source: { kind: 'html', title: s.title, html: s.html, games: s.games }, title: s.title, host };
   }
   const p = parseMashupId(a ?? '');
   if (!p) throw new Error('Unknown mashup.');
@@ -45,7 +46,7 @@ async function resolve(route: Route): Promise<PlayContext> {
     source: { kind: 'engine', hero: p.hero, world: p.world, seed: seed ?? 0, aspect: 0 },
     title: mashupInfo(p.hero, p.world).title,
     mashupId: `${p.hero}-x-${p.world}`,
-    host: route.query.get('host') === '1',
+    host,
   };
 }
 
@@ -69,7 +70,18 @@ export const joinView: View = async (root, route) => {
   const screen = h(
     'div',
     { class: 'player' },
-    h('div', { class: 'overlay' }, h('div', { class: 'card' }, h('div', { class: 'big' }, '👥'), h('h2', null, 'Joining game'), status, h('div', { class: 'spinner', style: 'margin:10px auto' }))),
+    h(
+      'div',
+      { class: 'overlay' },
+      h(
+        'div',
+        { class: 'card' },
+        h('div', { class: 'big' }, '👥'),
+        h('h2', null, 'Joining game'),
+        status,
+        h('div', { class: 'spinner', style: 'margin:10px auto' }),
+      ),
+    ),
   );
   root.appendChild(screen);
   let joined: Awaited<ReturnType<typeof Room.join>>;
@@ -92,7 +104,13 @@ function errorScreen(message: string): HTMLElement {
     h(
       'div',
       { class: 'overlay' },
-      h('div', { class: 'card' }, h('div', { class: 'big' }, '😵'), h('p', null, message), h('div', { class: 'btn-row', style: 'justify-content:center' }, btn('Home', { href: '#/', class: 'primary' }))),
+      h(
+        'div',
+        { class: 'card' },
+        h('div', { class: 'big' }, '😵'),
+        h('p', null, message),
+        h('div', { class: 'btn-row', style: 'justify-content:center' }, btn('Home', { href: '#/', class: 'primary' })),
+      ),
     ),
   );
 }
@@ -142,32 +160,36 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
     h(
       'div',
       { class: 'pbtns' },
-    h('button', { class: 'btn icon ghost', type: 'button', title: 'Play with friends', 'aria-label': 'Play with friends', onClick: () => void openInvite() }, icon('users')),
-    soundBtn,
-    h(
-      'button',
-      {
-        class: 'btn icon ghost',
-        type: 'button',
-        title: 'Touch controls',
-        'aria-label': 'Toggle touch controls',
-        onClick: () => player.classList.toggle('touch'),
-      },
-      icon('gamepad'),
-    ),
-    document.fullscreenEnabled
-      ? h(
-          'button',
-          {
-            class: 'btn icon ghost',
-            type: 'button',
-            title: 'Fullscreen',
-            'aria-label': 'Fullscreen',
-            onClick: () => (document.fullscreenElement ? document.exitFullscreen() : player.requestFullscreen().catch(() => {})),
-          },
-          icon('expand'),
-        )
-      : null,
+      h(
+        'button',
+        { class: 'btn icon ghost', type: 'button', title: 'Play with friends', 'aria-label': 'Play with friends', onClick: () => void openInvite() },
+        icon('users'),
+      ),
+      soundBtn,
+      h(
+        'button',
+        {
+          class: 'btn icon ghost',
+          type: 'button',
+          title: 'Touch controls',
+          'aria-label': 'Toggle touch controls',
+          onClick: () => player.classList.toggle('touch'),
+        },
+        icon('gamepad'),
+      ),
+      document.fullscreenEnabled
+        ? h(
+            'button',
+            {
+              class: 'btn icon ghost',
+              type: 'button',
+              title: 'Fullscreen',
+              'aria-label': 'Fullscreen',
+              onClick: () => (document.fullscreenElement ? document.exitFullscreen() : player.requestFullscreen().catch(() => {})),
+            },
+            icon('expand'),
+          )
+        : null,
     ),
   );
 
@@ -177,10 +199,7 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
   player.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
 
-  const cleanups: (() => void)[] = [
-    () => player.removeEventListener('pointerdown', unlock),
-    () => window.removeEventListener('keydown', unlock),
-  ];
+  const cleanups: (() => void)[] = [() => player.removeEventListener('pointerdown', unlock), () => window.removeEventListener('keydown', unlock)];
   let room = ctx.room;
   let overlay: HTMLElement | null = null;
 
@@ -206,9 +225,8 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
     };
     // Add the pad first so the game measures the space that is really left.
     const set = HEROES[src.hero].buttons[WORLDS[src.world].view];
-    pad = new TouchPad(
-      { a: set[0] && ABILITY_LABEL[set[0]], b: set[1] && ABILITY_LABEL[set[1]], c: set[2] && ABILITY_LABEL[set[2]] },
-      (s) => engine?.setPad(s),
+    pad = new TouchPad({ a: set[0] && ABILITY_LABEL[set[0]], b: set[1] && ABILITY_LABEL[set[1]], c: set[2] && ABILITY_LABEL[set[2]] }, (s) =>
+      engine?.setPad(s),
     );
     player.appendChild(pad.el);
     engine = new EngineRunner(stage, {
@@ -263,7 +281,12 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
           won && ctx.mashupId
             ? btn('Share', {
                 icon: 'share',
-                onClick: () => void shareLink(appUrl(`/m/${ctx.mashupId}`), ctx.title, `I cleared ${ctx.title} in ${formatTime(time)} with ${score} points on Combiner. Beat that!`),
+                onClick: () =>
+                  void shareLink(
+                    appUrl(`/m/${ctx.mashupId}`),
+                    ctx.title,
+                    `I cleared ${ctx.title} in ${formatTime(time)} with ${score} points on Combiner. Beat that!`,
+                  ),
               })
             : null,
         ),
@@ -281,15 +304,15 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
         lastError = message;
         errBar.replaceChildren(
           ...[
-          h('span', { class: 'err' }, `⚠️ ${message}${line ? ` (line ${line})` : ''}`),
-          ctx.libId
-            ? btn('Fix with AI', {
-                class: 'small primary',
-                icon: 'wand',
-                href: `#/create?edit=${ctx.libId}&fix=${encodeURIComponent(`${message}${line ? ` (line ${line})` : ''}`)}`,
-              })
-            : null,
-          btn('', { class: 'small icon ghost', icon: 'close', title: 'Dismiss', onClick: () => (errBar.style.opacity = '0') }),
+            h('span', { class: 'err' }, `⚠️ ${message}${line ? ` (line ${line})` : ''}`),
+            ctx.libId
+              ? btn('Fix with AI', {
+                  class: 'small primary',
+                  icon: 'wand',
+                  href: `#/create?edit=${ctx.libId}&fix=${encodeURIComponent(`${message}${line ? ` (line ${line})` : ''}`)}`,
+                })
+              : null,
+            btn('', { class: 'small icon ghost', icon: 'close', title: 'Dismiss', onClick: () => (errBar.style.opacity = '0') }),
           ].filter((x): x is HTMLElement => !!x),
         );
         errBar.style.opacity = '1';
@@ -312,7 +335,13 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
       const kb = new Keyboard();
       const sync = () => {
         const k = kb.read();
-        sandbox?.sendInput({ x: Math.max(-1, Math.min(1, padState.x + k.x)), y: Math.max(-1, Math.min(1, padState.y + k.y)), a: padState.a || k.a, b: padState.b || k.b, c: padState.c || k.c });
+        sandbox?.sendInput({
+          x: Math.max(-1, Math.min(1, padState.x + k.x)),
+          y: Math.max(-1, Math.min(1, padState.y + k.y)),
+          a: padState.a || k.a,
+          b: padState.b || k.b,
+          c: padState.c || k.c,
+        });
       };
       pad = new TouchPad(meta.labels, (s) => {
         padState = s;
@@ -444,12 +473,21 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
         'div',
         { class: 'linkbox' },
         input,
-        btn('', { class: 'icon', icon: 'copy', title: 'Copy link', onClick: async () => toast((await copyText(link)) ? 'Invite link copied!' : 'Copy failed') }),
+        btn('', {
+          class: 'icon',
+          icon: 'copy',
+          title: 'Copy link',
+          onClick: async () => toast((await copyText(link)) ? 'Invite link copied!' : 'Copy failed'),
+        }),
       ),
       h(
         'div',
         { class: 'btn-row' },
-        btn('Share invite', { class: 'primary', icon: 'share', onClick: () => void shareLink(link, `Play ${ctx.title} with me`, `Join my ${ctx.title} game on Combiner!`) }),
+        btn('Share invite', {
+          class: 'primary',
+          icon: 'share',
+          onClick: () => void shareLink(link, `Play ${ctx.title} with me`, `Join my ${ctx.title} game on Combiner!`),
+        }),
         room.isHost && engine
           ? btn('Restart race for everyone', {
               icon: 'refresh',
@@ -480,4 +518,3 @@ function startPlayer(root: HTMLElement, ctx: PlayContext): () => void {
     clear(root);
   };
 }
-

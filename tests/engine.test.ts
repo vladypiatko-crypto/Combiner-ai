@@ -6,6 +6,33 @@ import type { Input } from '../src/engine/types';
 
 const ids = BASE_GAMES.map((g) => g.id);
 
+/** Tiles a non-digging hero can reach from its spawn (4-neighbour flood fill). */
+function reachable(g: Game): Set<number> {
+  const L = g.level;
+  const seen = new Set<number>();
+  const sx = Math.floor((g.hero.x + 6) / 16);
+  const sy = Math.floor((g.hero.y + 6) / 16);
+  const q = [[sx, sy]];
+  seen.add(sy * L.w + sx);
+  while (q.length) {
+    const [x, y] = q.pop()!;
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      const k = ny * L.w + nx;
+      if (!L.inside(nx, ny) || seen.has(k) || isSolid(L.get(nx, ny))) continue;
+      seen.add(k);
+      q.push([nx, ny]);
+    }
+  }
+  return seen;
+}
+
 function randomInput(r: Rng, prev: Input): Input {
   // Hold inputs for a while like a person would, with occasional changes.
   if (r.chance(0.9)) return prev;
@@ -58,6 +85,15 @@ describe('goals', () => {
     expect(g.state).toBe('won');
   });
 
+  it('Blockcraft has enough diamonds above ground for heroes that cannot dig', () => {
+    for (let seed = 1; seed < 40; seed++) {
+      const g = new Game({ heroId: 'flappy', worldId: 'blockcraft', seed });
+      const seen = reachable(g);
+      const open = g.ents.filter((e) => e.type === 'diamond' && seen.has(Math.floor((e.y + 5) / 16) * g.level.w + Math.floor((e.x + 5) / 16)));
+      expect(open.length).toBeGreaterThanOrEqual(8);
+    }
+  });
+
   it('eating every dot wins Ghost Maze', () => {
     const g = new Game({ heroId: 'maze', worldId: 'maze' });
     for (const d of g.ents.filter((e) => e.type === 'pellet' || e.type === 'power')) g.collect(d);
@@ -77,27 +113,7 @@ describe('goals', () => {
     for (let seed = 1; seed < 30; seed++) {
       const g = new Game({ heroId: 'blockcraft', worldId: 'dragonrealm', seed });
       const L = g.level;
-      const seen = new Set<number>();
-      const sx = Math.floor((g.hero.x + 6) / 16);
-      const sy = Math.floor((g.hero.y + 6) / 16);
-      const q = [[sx, sy]];
-      seen.add(sy * L.w + sx);
-      while (q.length) {
-        const [x, y] = q.pop()!;
-        for (const [dx, dy] of [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ]) {
-          const nx = x + dx;
-          const ny = y + dy;
-          const k = ny * L.w + nx;
-          if (seen.has(k) || isSolid(L.get(nx, ny))) continue;
-          seen.add(k);
-          q.push([nx, ny]);
-        }
-      }
+      const seen = reachable(g);
       for (const r of g.ents.filter((e) => e.type === 'rune')) {
         const k = Math.floor((r.y + 5) / 16) * L.w + Math.floor((r.x + 5) / 16);
         expect(seen.has(k)).toBe(true);

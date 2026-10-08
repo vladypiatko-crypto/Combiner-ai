@@ -106,16 +106,4 @@ export type GameEvent =
   | { type: 'sfx'; name: SfxName }
   | { type: 'banner'; text: string };
 
-export type SfxName =
-  | 'jump'
-  | 'hit'
-  | 'hurt'
-  | 'pickup'
-  | 'break'
-  | 'shoot'
-  | 'power'
-  | 'boom'
-  | 'win'
-  | 'lose'
-  | 'place'
-  | 'shout';
+export type SfxName = 'jump' | 'hit' | 'hurt' | 'pickup' | 'break' | 'shoot' | 'power' | 'boom' | 'win' | 'lose' | 'place' | 'shout';

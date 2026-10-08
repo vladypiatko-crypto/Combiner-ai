@@ -39,9 +39,22 @@ function makeId(): string {
   return 'cmb-' + Array.from(a, (b) => (b % 36).toString(36)).join('');
 }
 
+/** A self-hosted PeerJS server from Settings, or the free public one. */
+function serverOptions(): Partial<PeerOptions> {
+  const raw = getSettings().peerServer.trim();
+  if (!raw) return {};
+  try {
+    const u = new URL(raw);
+    const secure = u.protocol === 'https:';
+    return { host: u.hostname, port: Number(u.port) || (secure ? 443 : 80), path: u.pathname || '/', secure };
+  } catch {
+    return {};
+  }
+}
+
 async function newPeer(id?: string): Promise<PeerType> {
   const { Peer } = await import('peerjs');
-  const opts: PeerOptions = { config: { iceServers: iceServers() }, debug: 0 };
+  const opts: PeerOptions = { ...serverOptions(), config: { iceServers: iceServers() }, debug: 0 };
   const peer = id ? new Peer(id, opts) : new Peer(opts);
   await new Promise<void>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error('Could not reach the matchmaking server. Check your connection.')), 12000);

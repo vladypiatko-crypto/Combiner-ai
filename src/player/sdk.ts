@@ -81,8 +81,8 @@ export const SDK_SOURCE = String.raw`(function () {
     }
   });
 
-  // Sandboxed frames cannot use real storage; give games a memory shim so
-  // "save high score" code does not crash them.
+  /* Sandboxed frames cannot use real storage; give games a memory shim so
+     "save high score" code does not crash them. */
   try { window.localStorage.getItem('x'); } catch (e) {
     var mk = function () {
       var mem = {};
@@ -99,7 +99,7 @@ export const SDK_SOURCE = String.raw`(function () {
     try { Object.defineProperty(window, 'sessionStorage', { value: mk(), configurable: true }); } catch (e3) {}
   }
 
-  // Resume any WebAudio contexts on the first real tap inside the game.
+  /* Resume any WebAudio contexts on the first real tap inside the game. */
   var ctxs = [];
   var AC = window.AudioContext || window.webkitAudioContext;
   if (AC) {
@@ -111,7 +111,7 @@ export const SDK_SOURCE = String.raw`(function () {
   var wake = function () { for (var i = 0; i < ctxs.length; i++) { try { if (ctxs[i].state === 'suspended') ctxs[i].resume(); } catch (e) {} } };
   ['pointerdown', 'touchstart', 'keydown', 'mousedown'].forEach(function (t) { window.addEventListener(t, wake, true); });
 
-  // Games own every touch: no page scrolling, zooming or text selection.
+  /* Games own every touch: no page scrolling, zooming or text selection. */
   var style = document.createElement('style');
   style.textContent = 'html,body{margin:0;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}';
   (document.head || document.documentElement).appendChild(style);

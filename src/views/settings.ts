@@ -16,7 +16,15 @@ export const settingsView: View = (root) => {
     const radio = h('input', { type: 'radio', name: 'provider', value: p.id });
     radio.checked = s.provider === p.id;
     const body = h('div', { class: 'body' });
-    if (p.keyHint) body.appendChild(h('p', { class: 'hint' }, p.keyHint, p.keyUrl ? h('span', null, ' ', h('a', { href: p.keyUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Get a key →')) : null));
+    if (p.keyHint)
+      body.appendChild(
+        h(
+          'p',
+          { class: 'hint' },
+          p.keyHint,
+          p.keyUrl ? h('span', null, ' ', h('a', { href: p.keyUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Get a key →')) : null,
+        ),
+      );
     if (p.id !== 'manual') {
       if (p.id === 'custom') {
         const base = h('input', { class: 'input', value: getSettings().customBase, placeholder: 'https://api.groq.com/openai/v1' });
@@ -57,7 +65,12 @@ export const settingsView: View = (root) => {
         ),
       );
     }
-    const card = h('label', { class: `provider ${radio.checked ? 'on' : ''}` }, h('div', { class: 'ph' }, radio, h('span', null, p.name), h('span', { class: 'spacer', style: 'flex:1' }), h('span', { class: 'pill' }, p.cost)), body);
+    const card = h(
+      'label',
+      { class: `provider ${radio.checked ? 'on' : ''}` },
+      h('div', { class: 'ph' }, radio, h('span', null, p.name), h('span', { class: 'spacer', style: 'flex:1' }), h('span', { class: 'pill' }, p.cost)),
+      body,
+    );
     radio.addEventListener('change', () => {
       saveSettings({ provider: p.id as ProviderId });
       for (const c of root.querySelectorAll('.provider')) c.classList.remove('on');
@@ -81,7 +94,10 @@ export const settingsView: View = (root) => {
   const turnUrl = h('input', { class: 'input', value: s.turnUrl, placeholder: 'turn:your.server:3478 (optional)' });
   const turnUser = h('input', { class: 'input', value: s.turnUser, placeholder: 'username' });
   const turnPass = h('input', { class: 'input', type: 'password', value: s.turnPass, placeholder: 'password' });
-  for (const el of [turnUrl, turnUser, turnPass]) el.addEventListener('change', () => saveSettings({ turnUrl: turnUrl.value.trim(), turnUser: turnUser.value.trim(), turnPass: turnPass.value }));
+  for (const el of [turnUrl, turnUser, turnPass])
+    el.addEventListener('change', () => saveSettings({ turnUrl: turnUrl.value.trim(), turnUser: turnUser.value.trim(), turnPass: turnPass.value }));
+  const peerServer = h('input', { class: 'input', value: s.peerServer, placeholder: 'https://your-peer-server.example.com/ (optional)' });
+  peerServer.addEventListener('change', () => saveSettings({ peerServer: peerServer.value.trim() }));
 
   const importInput = h('input', { type: 'file', accept: '.json,application/json', class: 'sr-only' });
   importInput.addEventListener('change', async () => {
@@ -105,13 +121,22 @@ export const settingsView: View = (root) => {
         'section',
         { class: 'card' },
         h('h2', null, 'You'),
-        h('div', { style: 'display:flex;gap:10px;align-items:end' }, h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', null, 'Name in multiplayer'), name), color),
+        h(
+          'div',
+          { style: 'display:flex;gap:10px;align-items:end' },
+          h('label', { class: 'field', style: 'flex:1;margin:0' }, h('span', null, 'Name in multiplayer'), name),
+          color,
+        ),
       ),
       h(
         'section',
         { class: 'card' },
         h('h2', null, 'AI for creating games'),
-        h('p', { class: 'hint' }, 'Pick how new mashups are generated. Keys are saved in this browser only and sent directly to the provider you choose — never to Combiner. Games you play run in a sandbox that cannot read them.'),
+        h(
+          'p',
+          { class: 'hint' },
+          'Pick how new mashups are generated. Keys are saved in this browser only and sent directly to the provider you choose — never to Combiner. Games you play run in a sandbox that cannot read them.',
+        ),
         h('div', { class: 'provider-list' }, ...cards),
       ),
       h(
@@ -125,9 +150,15 @@ export const settingsView: View = (root) => {
         'section',
         { class: 'card' },
         h('h2', null, 'Multiplayer network'),
-        h('p', { class: 'hint' }, 'Games connect players directly (peer-to-peer). If friends on strict mobile or school networks cannot join, add a TURN relay server here.'),
+        h(
+          'p',
+          { class: 'hint' },
+          'Games connect players directly (peer-to-peer). If friends on strict mobile or school networks cannot join, add a TURN relay server here.',
+        ),
         h('label', { class: 'field' }, h('span', null, 'TURN server'), turnUrl),
-        h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, turnUser, turnPass),
+        h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px' }, turnUser, turnPass),
+        h('label', { class: 'field' }, h('span', null, 'Matchmaking server'), peerServer),
+        h('p', { class: 'hint' }, 'Leave empty to use the free public PeerJS server. Everyone in a room must use the same server.'),
       ),
       h(
         'section',
@@ -138,7 +169,12 @@ export const settingsView: View = (root) => {
           { class: 'btn-row' },
           btn('Back up my games', {
             icon: 'download',
-            onClick: async () => download(`combiner-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ v: 1, creations: await listCreations() }), 'application/json'),
+            onClick: async () =>
+              download(
+                `combiner-backup-${new Date().toISOString().slice(0, 10)}.json`,
+                JSON.stringify({ v: 1, creations: await listCreations() }),
+                'application/json',
+              ),
           }),
           h('label', { class: 'btn', style: 'cursor:pointer' }, importInput, 'Restore backup'),
         ),

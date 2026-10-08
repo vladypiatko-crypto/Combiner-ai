@@ -153,7 +153,8 @@ async function httpError(res: Response, who: string): Promise<Error> {
   }
   detail = String(detail).slice(0, 300);
   if (res.status === 401 || res.status === 403) return new Error(`${who} rejected the key (${res.status}). Check it in Settings. ${detail}`);
-  if (res.status === 429) return new Error(`${who} is rate-limiting free requests right now. Wait a minute, pick another model, or use copy & paste mode. ${detail}`);
+  if (res.status === 429)
+    return new Error(`${who} is rate-limiting free requests right now. Wait a minute, pick another model, or use copy & paste mode. ${detail}`);
   if (res.status === 402) return new Error(`${who} says this model needs credits. Pick a free model. ${detail}`);
   return new Error(`${who} error ${res.status}: ${detail}`);
 }

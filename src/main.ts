@@ -38,7 +38,12 @@ async function render(): Promise<void> {
   const route = parseHash();
   const view = routes[route.path[0] ?? ''];
   if (!view) {
-    app.appendChild(layout('', h('div', { class: 'empty-state' }, h('div', { class: 'emoji' }, '🧭'), h('p', null, 'Page not found.'), btn('Home', { href: '#/', class: 'primary' }))));
+    app.appendChild(
+      layout(
+        '',
+        h('div', { class: 'empty-state' }, h('div', { class: 'emoji' }, '🧭'), h('p', null, 'Page not found.'), btn('Home', { href: '#/', class: 'primary' })),
+      ),
+    );
     return;
   }
   const fullscreen = route.path[0] === 'play' || route.path[0] === 'join';

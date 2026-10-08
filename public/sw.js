@@ -3,16 +3,25 @@
 // new deploys show up on the next visit. Cross-origin requests (AI providers,
 // multiplayer signalling) are never touched.
 const CACHE = 'combiner-v1';
+const SHELL = ['./', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png'];
 
+// Cache the app shell plus the hashed JS/CSS that index.html points at, so the
+// very first visit is enough to play offline afterwards.
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './manifest.webmanifest', './icons/icon.svg'])));
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await cache.addAll(SHELL);
+      const html = await (await cache.match('./')).text();
+      const assets = [...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1]);
+      await cache.addAll(assets);
+    })(),
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
-  );
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))));
   self.clients.claim();
 });
 
@@ -24,7 +33,7 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.includes('/assets/')) {
     event.respondWith(
-      caches.match(req).then(
+      caches.match(req, { ignoreVary: true }).then(
         (hit) =>
           hit ||
           fetch(req).then((res) => {
@@ -45,6 +54,6 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       })
-      .catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html'))),
+      .catch(() => caches.match(req, { ignoreVary: true }).then((hit) => hit || caches.match('./', { ignoreVary: true }))),
   );
 });

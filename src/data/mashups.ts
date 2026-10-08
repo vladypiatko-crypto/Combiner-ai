@@ -35,7 +35,8 @@ const TITLES: Record<string, string> = {
 };
 
 const PITCHES: Record<string, string> = {
-  'blockcraft-x-dragonrealm': 'Our take on the famous "SkyCraft" idea: a blocky miner in a dragon-haunted tundra. Mine through cracked ruins, wall yourself in with blocks and take down the dragon with a pickaxe.',
+  'blockcraft-x-dragonrealm':
+    'Our take on the famous "SkyCraft" idea: a blocky miner in a dragon-haunted tundra. Mine through cracked ruins, wall yourself in with blocks and take down the dragon with a pickaxe.',
   'dragonrealm-x-blockcraft': 'A horned knight drops into a blocky overworld. Sword through zombies, shout creepers off cliffs and dig for diamonds.',
   'flappy-x-rocks': 'Gravity is gone and the pipes became asteroids. Flap and peck-dash your way through a rock storm.',
   'snake-x-jumper': 'A snake in a side-scrolling kingdom. Slither over pits, bite the mushrooms and eat every coin on the way to the flag.',

@@ -273,7 +273,7 @@ function ghost(game: Game, e: Ent, dt: number): void {
   const frightened = game.hero.power > 0 && !d.eaten;
   d.frightened = frightened ? 1 : 0;
   e.data.harmless = d.eaten ? 1 : 0;
-  const speed = d.eaten ? 150 : frightened ? 36 : 50 + (game.goal().progress * 22);
+  const speed = d.eaten ? 150 : frightened ? 36 : 50 + game.goal().progress * 22;
   const [tx, ty] = cellCenter(d.tx, d.ty);
   const cx = e.x + e.w / 2;
   const cy = e.y + e.h / 2;

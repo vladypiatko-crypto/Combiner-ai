@@ -4,7 +4,8 @@ import { manualPrompt, systemPrompt, userPrompt } from '../src/ai/prompt';
 import { decodeShare, encodeShare } from '../src/data/share';
 import { injectSdk, parseControls } from '../src/player/sandbox';
 
-const GAME = '<!doctype html><html><head><title>Blockrim</title><meta name="combiner-controls" content="a:Jump b:Mine c:Place_Block"></head><body><canvas></canvas><script>1</script></body></html>';
+const GAME =
+  '<!doctype html><html><head><title>Blockrim</title><meta name="combiner-controls" content="a:Jump b:Mine c:Place_Block"></head><body><canvas></canvas><script>1</script></body></html>';
 
 describe('extractGame', () => {
   it('reads title, tagline and fenced html', () => {

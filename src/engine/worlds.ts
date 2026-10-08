@@ -189,18 +189,17 @@ const blockcraft: WorldDef = {
       treeCols.add(x);
     }
     L.spawn = { x: 3 * TILE, y: (surf[3] - 1) * TILE - 2 };
-    // Diamonds on the surface…
-    for (let i = 0; i < 7; i++) {
-      let x = 18 + i * 18 + rng.int(-3, 3);
+    // Diamonds on the surface (enough to win without digging: not every hero can mine)…
+    for (let i = 0; i < 9; i++) {
+      let x = 18 + i * 14 + rng.int(-3, 3);
       while (treeCols.has(x)) x++;
       game.pickup('diamond', x * TILE + 8, (surf[x] - 1) * TILE + 8);
     }
     // …and in caves.
     const cave: [number, number][] = [];
     for (let x = 10; x < W - 2; x++)
-      for (let y = surf[x] + 5; y < H - 2; y++)
-        if (L.get(x, y) === EMPTY && L.get(x, y - 1) === EMPTY && isSolid(L.get(x, y + 1))) cave.push([x, y]);
-    for (let i = 0; i < 5 && cave.length; i++) {
+      for (let y = surf[x] + 5; y < H - 2; y++) if (L.get(x, y) === EMPTY && L.get(x, y - 1) === EMPTY && isSolid(L.get(x, y + 1))) cave.push([x, y]);
+    for (let i = 0; i < 4 && cave.length; i++) {
       const [x, y] = cave.splice(rng.int(0, cave.length - 1), 1)[0];
       game.pickup('diamond', x * TILE + 8, y * TILE + 8);
     }

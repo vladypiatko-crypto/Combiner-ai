@@ -32,7 +32,12 @@ export const libraryView: View = async (root) => {
       'div',
       { class: 'lrow' },
       h('div', { style: 'font-size:1.8rem' }, c.multiplayer ? '👥' : '✨'),
-      h('div', { class: 'lmain' }, h('div', { class: 'name' }, c.title), h('div', { class: 'sub' }, `${c.games.join(' × ')} · ${timeAgo(c.updatedAt)} · ${(c.html.length / 1024).toFixed(0)} KB`)),
+      h(
+        'div',
+        { class: 'lmain' },
+        h('div', { class: 'name' }, c.title),
+        h('div', { class: 'sub' }, `${c.games.join(' × ')} · ${timeAgo(c.updatedAt)} · ${(c.html.length / 1024).toFixed(0)} KB`),
+      ),
       btn('', { class: 'icon primary', icon: 'play', title: 'Play', href: `#/play/lib/${c.id}` }),
       btn('', { class: 'icon', icon: 'edit', title: 'Edit with AI', href: `#/create?edit=${c.id}` }),
       btn('', {
@@ -40,11 +45,24 @@ export const libraryView: View = async (root) => {
         icon: 'share',
         title: 'Share link',
         onClick: async () => {
-          const payload = await encodeShare({ v: 1, title: c.title, tagline: c.tagline, games: c.games, twist: c.twist, html: c.html, multiplayer: c.multiplayer });
+          const payload = await encodeShare({
+            v: 1,
+            title: c.title,
+            tagline: c.tagline,
+            games: c.games,
+            twist: c.twist,
+            html: c.html,
+            multiplayer: c.multiplayer,
+          });
           await shareLink(appUrl(`/s/${payload}`), c.title, `${c.title} — made with Combiner`);
         },
       }),
-      btn('', { class: 'icon', icon: 'download', title: 'Download', onClick: () => download(`${c.title.replace(/[^\w-]+/g, '-').toLowerCase()}.html`, c.html) }),
+      btn('', {
+        class: 'icon',
+        icon: 'download',
+        title: 'Download',
+        onClick: () => download(`${c.title.replace(/[^\w-]+/g, '-').toLowerCase()}.html`, c.html),
+      }),
       btn('', {
         class: 'icon danger',
         icon: 'trash',
@@ -104,7 +122,12 @@ export const libraryView: View = async (root) => {
   root.appendChild(
     layout(
       'library',
-      h('section', { class: 'hero' }, h('h1', null, 'My games'), h('p', { class: 'lead' }, 'Your AI creations live on this device. Share them as links — the whole game travels inside the link.')),
+      h(
+        'section',
+        { class: 'hero' },
+        h('h1', null, 'My games'),
+        h('p', { class: 'lead' }, 'Your AI creations live on this device. Share them as links — the whole game travels inside the link.'),
+      ),
       h(
         'div',
         { class: 'btn-row', style: 'margin-bottom:14px' },
@@ -126,7 +149,18 @@ export const sharedView: View = async (root, route) => {
   try {
     game = await decodeShare(payload);
   } catch (err) {
-    root.appendChild(layout('', h('div', { class: 'empty-state' }, h('div', { class: 'emoji' }, '🔗'), h('p', null, `This link is broken: ${(err as Error).message}`), btn('Home', { href: '#/' }))));
+    root.appendChild(
+      layout(
+        '',
+        h(
+          'div',
+          { class: 'empty-state' },
+          h('div', { class: 'emoji' }, '🔗'),
+          h('p', null, `This link is broken: ${(err as Error).message}`),
+          btn('Home', { href: '#/' }),
+        ),
+      ),
+    );
     return;
   }
   const g = game;
@@ -150,7 +184,18 @@ export const sharedView: View = async (root, route) => {
             onClick: async () => {
               const now = Date.now();
               const id = newId();
-              await saveCreation({ id, title: g.title, tagline: g.tagline ?? '', games: [games[0], games[1]], twist: g.twist ?? '', html: g.html, multiplayer: !!g.multiplayer, createdAt: now, updatedAt: now, history: [] });
+              await saveCreation({
+                id,
+                title: g.title,
+                tagline: g.tagline ?? '',
+                games: [games[0], games[1]],
+                twist: g.twist ?? '',
+                html: g.html,
+                multiplayer: !!g.multiplayer,
+                createdAt: now,
+                updatedAt: now,
+                history: [],
+              });
               toast('Saved! You can now remix it with AI.');
               location.hash = `#/create?edit=${id}`;
             },

@@ -73,7 +73,10 @@ export function icon(name: keyof typeof icons): SVGElement {
   return svg(icons[name]);
 }
 
-export function btn(label: Child, opts: { class?: string; icon?: keyof typeof icons; onClick?: (e: MouseEvent) => void; href?: string; title?: string } = {}): HTMLElement {
+export function btn(
+  label: Child,
+  opts: { class?: string; icon?: keyof typeof icons; onClick?: (e: MouseEvent) => void; href?: string; title?: string } = {},
+): HTMLElement {
   const content = [opts.icon ? icon(opts.icon) : null, label];
   if (opts.href) return h('a', { class: `btn ${opts.class ?? ''}`, href: opts.href, title: opts.title }, ...content);
   return h('button', { class: `btn ${opts.class ?? ''}`, type: 'button', onClick: opts.onClick, title: opts.title, 'aria-label': opts.title }, ...content);
@@ -93,7 +96,14 @@ export function layout(active: string, ...content: Child[]): HTMLElement {
         'div',
         { class: 'wrap' },
         h('a', { class: 'logo', href: '#/' }, h('img', { src: './icons/icon.svg', alt: '' }), 'Combiner'),
-        h('nav', { class: 'topnav' }, top('#/', 'home', 'Play'), top('#/combine', 'combine', 'All mashups'), top('#/create', 'create', 'Create with AI'), top('#/library', 'library', 'My games')),
+        h(
+          'nav',
+          { class: 'topnav' },
+          top('#/', 'home', 'Play'),
+          top('#/combine', 'combine', 'All mashups'),
+          top('#/create', 'create', 'Create with AI'),
+          top('#/library', 'library', 'My games'),
+        ),
         h('div', { class: 'spacer' }),
         h('a', { class: 'btn icon ghost', href: '#/settings', title: 'Settings', 'aria-label': 'Settings' }, icon('settings')),
       ),

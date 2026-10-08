@@ -94,7 +94,13 @@ export function fusionLab(initialHero = 'blockcraft', initialWorld = 'dragonreal
 }
 
 export const homeView: View = async (root) => {
-  const featured = h('div', { class: 'grid' }, ...FEATURED.map((id) => parseMashupId(id)).filter(Boolean).map((p) => mashupCard(mashupInfo(p!.hero, p!.world))));
+  const featured = h(
+    'div',
+    { class: 'grid' },
+    ...FEATURED.map((id) => parseMashupId(id))
+      .filter(Boolean)
+      .map((p) => mashupCard(mashupInfo(p!.hero, p!.world))),
+  );
   const mine = h('div');
   const recent = h('div');
 
@@ -122,7 +128,11 @@ export const homeView: View = async (root) => {
         h(
           'div',
           { class: 'btn-row' },
-          btn('Combine now', { class: 'primary', icon: 'combine', onClick: () => document.getElementById('lab')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }),
+          btn('Combine now', {
+            class: 'primary',
+            icon: 'combine',
+            onClick: () => document.getElementById('lab')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+          }),
           btn('Create with AI', { class: 'cool', icon: 'sparkles', href: '#/create' }),
         ),
       ),
@@ -138,19 +148,33 @@ export const homeView: View = async (root) => {
           'div',
           { class: 'steps' },
           step(1, 'Pick two games', 'Choose whose hero you play and whose world you play in. Every combo works — 64 of them.'),
-          step(2, 'Play anywhere', 'Runs in the browser with touch controls on phones and keyboard or gamepad on PC. Add it to your home screen to play offline.'),
-          step(3, 'Create & share', 'Describe any mashup — even real games like "Minecraft × Skyrim" — and AI builds a playable version. Share it with a link or play together.'),
+          step(
+            2,
+            'Play anywhere',
+            'Runs in the browser with touch controls on phones and keyboard or gamepad on PC. Add it to your home screen to play offline.',
+          ),
+          step(
+            3,
+            'Create & share',
+            'Describe any mashup — even real games like "Minecraft × Skyrim" — and AI builds a playable version. Share it with a link or play together.',
+          ),
         ),
       ),
       h(
         'footer',
         { class: 'footer' },
-        h('p', null, 'Combiner is free and open source. The built-in games are original homages; the famous games they nod to belong to their owners and are not affiliated with Combiner.'),
+        h(
+          'p',
+          null,
+          'Combiner is free and open source. The built-in games are original homages; the famous games they nod to belong to their owners and are not affiliated with Combiner.',
+        ),
       ),
     ),
   );
 
-  const recentIds = recentPlays().filter((id) => parseMashupId(id)).slice(0, 4);
+  const recentIds = recentPlays()
+    .filter((id) => parseMashupId(id))
+    .slice(0, 4);
   if (recentIds.length) {
     recent.replaceWith(
       h(
@@ -172,14 +196,21 @@ export const homeView: View = async (root) => {
         h(
           'div',
           { class: 'grid' },
-          ...creations.slice(0, 4).map((c) =>
-            h(
-              'a',
-              { class: 'mcard', href: `#/play/lib/${c.id}` },
-              h('div', { class: 'thumb ai' }, h('div', { class: 'ai', style: 'position:absolute;inset:0' }, '✨')),
-              h('div', { class: 'meta' }, h('div', { class: 'name' }, c.title), h('div', { class: 'sub' }, `${c.games.join(' × ')} · ${timeAgo(c.updatedAt)}`)),
+          ...creations
+            .slice(0, 4)
+            .map((c) =>
+              h(
+                'a',
+                { class: 'mcard', href: `#/play/lib/${c.id}` },
+                h('div', { class: 'thumb ai' }, h('div', { class: 'ai', style: 'position:absolute;inset:0' }, '✨')),
+                h(
+                  'div',
+                  { class: 'meta' },
+                  h('div', { class: 'name' }, c.title),
+                  h('div', { class: 'sub' }, `${c.games.join(' × ')} · ${timeAgo(c.updatedAt)}`),
+                ),
+              ),
             ),
-          ),
         ),
       ),
     );
@@ -196,14 +227,29 @@ export const combineView: View = (root) => {
       'section',
       null,
       h('div', { class: 'section-head' }, h('h2', null, `${g.emoji} Play as the ${HEROES[g.id].name}`), h('p', null, `from ${g.name}`)),
-      h('div', { class: 'grid' }, ...allMashups().filter((m) => m.hero === g.id).map(mashupCard)),
+      h(
+        'div',
+        { class: 'grid' },
+        ...allMashups()
+          .filter((m) => m.hero === g.id)
+          .map(mashupCard),
+      ),
     ),
   );
   root.appendChild(
     layout(
       'combine',
-      h('section', { class: 'hero' }, h('h1', null, 'All mashups'), h('p', { class: 'lead' }, '8 games × 8 games = 64 playable mashups. Pick one, or roll the dice.')),
-      h('div', { class: 'btn-row', style: 'margin-bottom:16px' }, btn('Random mashup', { class: 'primary', icon: 'dice', onClick: () => go(`#/play/${(({ hero, world }) => `${hero}-x-${world}`)(randomMashup())}`) })),
+      h(
+        'section',
+        { class: 'hero' },
+        h('h1', null, 'All mashups'),
+        h('p', { class: 'lead' }, '8 games × 8 games = 64 playable mashups. Pick one, or roll the dice.'),
+      ),
+      h(
+        'div',
+        { class: 'btn-row', style: 'margin-bottom:16px' },
+        btn('Random mashup', { class: 'primary', icon: 'dice', onClick: () => go(`#/play/${(({ hero, world }) => `${hero}-x-${world}`)(randomMashup())}`) }),
+      ),
       fusionLab(),
       ...groups,
     ),

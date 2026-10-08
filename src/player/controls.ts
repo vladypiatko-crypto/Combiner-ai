@@ -15,6 +15,14 @@ export interface PadLabels {
   c?: string;
 }
 
+function capture(el: Element, id: number): void {
+  try {
+    el.setPointerCapture(id);
+  } catch {
+    /* pointer already gone; the press still counts */
+  }
+}
+
 export function wantsTouchControls(): boolean {
   const pref = getSettings().touch;
   if (pref === 'on') return true;
@@ -68,7 +76,7 @@ export class TouchPad {
       };
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault();
-        b.setPointerCapture(e.pointerId);
+        capture(b, e.pointerId);
         set(true);
       });
       for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) b.addEventListener(ev, () => set(false));
@@ -80,7 +88,7 @@ export class TouchPad {
     if (this.stickId !== -1) return;
     e.preventDefault();
     this.stickId = e.pointerId;
-    zone.setPointerCapture(e.pointerId);
+    capture(zone, e.pointerId);
     const r = zone.getBoundingClientRect();
     this.origin = { x: e.clientX - r.left, y: e.clientY - r.top };
     for (const el of [this.base, this.knob]) {

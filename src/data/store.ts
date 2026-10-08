@@ -14,6 +14,8 @@ export interface Settings {
   turnUrl: string;
   turnUser: string;
   turnPass: string;
+  /** Optional self-hosted PeerJS server, e.g. https://peer.example.com/myapp */
+  peerServer: string;
 }
 
 const COLORS = ['#ff5c8a', '#43e3c4', '#ffd43b', '#5b8cff', '#ff8a4c', '#b197fc', '#51cf66'];
@@ -41,6 +43,7 @@ function defaults(): Settings {
     turnUrl: '',
     turnUser: '',
     turnPass: '',
+    peerServer: '',
   };
 }
 
@@ -209,5 +212,7 @@ export async function deleteCreation(id: string): Promise<void> {
 export function newId(): string {
   const a = new Uint8Array(8);
   crypto.getRandomValues(a);
-  return Array.from(a, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 12);
+  return Array.from(a, (b) => b.toString(36).padStart(2, '0'))
+    .join('')
+    .slice(0, 12);
 }

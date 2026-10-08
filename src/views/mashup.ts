@@ -12,7 +12,12 @@ const KEYS = ['Space', 'X', 'C'];
 export const mashupView: View = (root, route) => {
   const p = parseMashupId(route.path[1] ?? '');
   if (!p) {
-    root.appendChild(layout('', h('div', { class: 'empty-state' }, h('div', { class: 'emoji' }, '🤔'), h('p', null, 'That mashup does not exist.'), btn('Back home', { href: '#/' }))));
+    root.appendChild(
+      layout(
+        '',
+        h('div', { class: 'empty-state' }, h('div', { class: 'emoji' }, '🤔'), h('p', null, 'That mashup does not exist.'), btn('Back home', { href: '#/' })),
+      ),
+    );
     return;
   }
   const { hero, world } = p;
@@ -66,14 +71,17 @@ export const mashupView: View = (root, route) => {
               icon: 'sparkles',
               href: `#/create?a=${encodeURIComponent(BASE[hero].inspiredBy)}&b=${encodeURIComponent(BASE[world].inspiredBy)}&twist=${encodeURIComponent(`Play ${BASE[world].inspiredBy}'s world as the ${BASE[hero].inspiredBy} hero`)}`,
             }),
-            btn('', { class: 'icon', icon: 'share', title: 'Share', onClick: () => void shareLink(appUrl(`/m/${m.id}`), m.title, `${m.title}: ${m.subtitle}`) }),
+            btn('', {
+              class: 'icon',
+              icon: 'share',
+              title: 'Share',
+              onClick: () => void shareLink(appUrl(`/m/${m.id}`), m.title, `${m.title}: ${m.subtitle}`),
+            }),
           ),
           h('div', { class: 'card' }, h('h3', null, 'Goal'), h('p', null, wd.objective), h('h3', null, 'Controls'), controls),
         ),
       ),
-      related.length
-        ? h('section', null, h('h2', null, 'More like this'), h('div', { class: 'grid' }, ...related.map(mashupCard)))
-        : null,
+      related.length ? h('section', null, h('h2', null, 'More like this'), h('div', { class: 'grid' }, ...related.map(mashupCard))) : null,
     ),
   );
 };
