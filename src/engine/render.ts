@@ -12,15 +12,16 @@ export function computeScale(game: Game, cssW: number, cssH: number): number {
 }
 
 const shadeCache = new Map<string, string[]>();
-function shades(color: string): string[] {
-  let s = shadeCache.get(color);
+function shades(color: string, step: number): string[] {
+  const key = `${color}/${step}`;
+  let s = shadeCache.get(key);
   if (s) return s;
   const n = parseInt(color.slice(1), 16);
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  s = [-10, -5, 0, 5, 10].map((d) => `rgb(${Math.max(0, Math.min(255, r + d))},${Math.max(0, Math.min(255, g + d))},${Math.max(0, Math.min(255, b + d))})`);
-  shadeCache.set(color, s);
+  s = [-2, -1, 0, 1, 2].map((k) => k * step).map((d) => `rgb(${Math.max(0, Math.min(255, r + d))},${Math.max(0, Math.min(255, g + d))},${Math.max(0, Math.min(255, b + d))})`);
+  shadeCache.set(key, s);
   return s;
 }
 
@@ -51,12 +52,12 @@ export function renderGame(game: Game, ctx: Ctx, cw: number, ch: number, dpr: nu
 
   // Ground for top-down worlds.
   if (L.view === 'top' && L.theme.ground) {
-    const gs = shades(L.theme.ground);
     const checker = L.theme.decor === 'grid';
+    const gs = shades(L.theme.ground, checker ? 5 : 2);
     for (let ty = ty0; ty <= ty1; ty++)
       for (let tx = tx0; tx <= tx1; tx++) {
         if (isSolid(L.get(tx, ty)) && L.getArt(tx, ty) !== 12 && L.getArt(tx, ty) !== 13) continue;
-        ctx.fillStyle = checker ? gs[(tx + ty) % 2 ? 1 : 3] : gs[(tx * 7 + ty * 13) % 5];
+        ctx.fillStyle = checker ? gs[(tx + ty) % 2 ? 1 : 3] : gs[(((tx * 73856093) ^ (ty * 19349663)) >>> 0) % 5];
         ctx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
       }
   }
@@ -153,9 +154,11 @@ function drawDecor(game: Game, ctx: Ctx, cw: number, ch: number, s: number): voi
   const L = game.level;
   const seed = hashString(L.theme.bg[0]);
   const rand = (i: number, k: number) => {
-    let x = (seed + i * 9301 + k * 49297) % 233280;
-    x = (x * 9301 + 49297) % 233280;
-    return x / 233280;
+    let x = Math.imul(seed ^ Math.imul(i + 1, 0x9e3779b1) ^ Math.imul(k + 1, 0x85ebca6b), 0xc2b2ae35);
+    x ^= x >>> 15;
+    x = Math.imul(x, 0x27d4eb2f);
+    x ^= x >>> 13;
+    return (x >>> 0) / 4294967296;
   };
   switch (L.theme.decor) {
     case 'clouds': {
