@@ -1,0 +1,60 @@
+{
+  "name": "RagdollRumble",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "RumbleServer": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "CharacterWalkSpeed": 21,
+        "CharacterJumpPower": 54,
+        "CharacterUseJumpPower": true,
+        "AutoJumpEnabled": false,
+        "GameSettingsAvatar": "R15",
+        "DevComputerMovementMode": "Scriptable",
+        "DevTouchMovementMode": "Scriptable",
+        "EnableMouseLockOption": false
+      },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "RumbleClient": {
+          "$path": "src/client"
+        }
+      },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Animate": {
+          "$path": "src/character/Animate.client.luau"
+        },
+        "Health": {
+          "$path": "src/character/Health.server.luau"
+        }
+      }
+    },
+    "Players": {
+      "$properties": {
+        "CharacterAutoLoads": false
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "Gravity": 165
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Brightness": 2,
+        "ClockTime": 14,
+        "GlobalShadows": true
+      }
+    }
+  }
+}
