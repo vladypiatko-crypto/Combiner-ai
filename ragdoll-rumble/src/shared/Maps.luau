@@ -264,6 +264,49 @@ Maps.list = {
 	},
 } :: { any }
 
+-- The lobby lives high above the arenas so people can hang out while a match runs.
+Maps.lobby = {
+	name = "The Arcade",
+	subtitle = "Lobby",
+	theme = {
+		kind = "lobby",
+		skyTop = 0x120f2a,
+		skyBottom = 0x4a2f7d,
+		block = 0x2b2546,
+		edge = 0xff5dcf,
+		ledge = 0x4a3b7a,
+		accent = 0x5bc0ff,
+		ink = 0x6f2dbd,
+		material = "SmoothPlastic",
+		clock = 20,
+	},
+	bounds = { left = -82, right = 82, bottom = 986, top = 1040 },
+	killY = 970,
+	spawns = { { -6, 1000 }, { -2, 1000 }, { 2, 1000 }, { 6, 1000 }, { -10, 1000 }, { 10, 1000 } },
+	weaponX = { 32, 64 },
+	weaponY = 1030,
+	blocks = {
+		{ x = 0, y = 995, w = 164, h = 10 }, -- floor (top 1000)
+		{ x = -80, y = 1018, w = 4, h = 36 },
+		{ x = 80, y = 1018, w = 4, h = 36 },
+		{ x = -56, y = 1010, w = 28, h = 1.5, style = "ledge", depth = 10 },
+		{ x = 56, y = 1010, w = 28, h = 1.5, style = "ledge", depth = 10 },
+		{ x = -38, y = 1004.5, w = 6, h = 1.5, style = "ledge", depth = 10 },
+		{ x = 38, y = 1004.5, w = 6, h = 1.5, style = "ledge", depth = 10 },
+	},
+	hazards = {},
+	stations = {
+		machine = { x = -22, y = 1000 },
+		locker = { x = -40, y = 1000 },
+		portal = { x = 0, y = 1000 },
+		board = { x = 0, y = 1019 },
+		dummies = { { 36, 1000 }, { 46, 1000 }, { 58, 1000 } },
+		trophy = { x = -56, y = 1010.75 },
+		lamps = { -66, -30, 16, 66 },
+		benches = { -12, 22 },
+	},
+}
+
 function Maps.get(i: number): any
 	return Maps.list[((i - 1) % #Maps.list) + 1]
 end

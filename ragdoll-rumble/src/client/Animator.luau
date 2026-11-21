@@ -24,7 +24,9 @@ type Anim = {
 	root: BasePart,
 	motors: { [string]: Motor6D },
 	cur: { [string]: Vector3 },
+	vel: { [string]: Vector3 },
 	rootY: number,
+	rootRoll: number,
 	rootPitch: number,
 	phase: number,
 	aim: number,
@@ -70,9 +72,10 @@ function Animator.track(model: Model)
 	if not motors.Waist or not motors.RightShoulder then
 		return -- not an R15 rig
 	end
-	local cur = {}
+	local cur, vel = {}, {}
 	for _, n in JOINTS do
 		cur[n] = Vector3.zero
+		vel[n] = Vector3.zero
 	end
 	local a: Anim = {
 		model = model,
@@ -80,7 +83,9 @@ function Animator.track(model: Model)
 		root = root,
 		motors = motors,
 		cur = cur,
+		vel = vel,
 		rootY = 0,
+		rootRoll = 0,
 		rootPitch = 0,
 		phase = 0,
 		aim = if root.CFrame.LookVector.X >= 0 then 0 else PI,
@@ -220,6 +225,9 @@ local function animate(a: Anim, dt: number)
 	local T: { [string]: Vector3 } = {}
 	local rootY, rootPitch = 0, 0
 	local waistP, waistY = 0, 0
+	if not grounded or a.crouch then
+		a.rootRoll = 0
+	end
 
 	-- legs / base -----------------------------------------------------------------
 	if not grounded then
@@ -253,7 +261,10 @@ local function animate(a: Anim, dt: number)
 		set(T, "LeftAnkle", -0.25 * s * amp)
 		rootY = abs(s) * 0.2 * amp - 0.06
 		waistP = -0.16 * amp * forward
+		waistY = -s * 0.22 * amp -- shoulders counter-twist against the hips
+		a.rootRoll = s * 0.06 * amp
 	else
+		a.rootRoll = sin(t * 1.1) * 0.025 -- idle weight shift
 		local b = sin(t * 2.3)
 		set(T, "RightHip", 0.16)
 		set(T, "LeftHip", -0.12)
@@ -438,24 +449,31 @@ local function animate(a: Anim, dt: number)
 	set(T, "Waist", waistP, waistY, 0)
 	set(T, "Neck", neckP - waistP * 0.5, -waistY * 0.4, 0)
 
-	-- smooth + write ---------------------------------------------------------------------
+	-- springs: limbs overshoot a touch and settle (secondary motion)
 	local fast = #a.actions > 0 or a.recoil > 0.2
-	local kFast = 1 - exp(-dt * 40)
-	local kSlow = 1 - exp(-dt * 16)
+	local steps = math.max(1, math.ceil(dt / (1 / 120)))
+	local h = dt / steps
 	for _, n in JOINTS do
 		local target = T[n]
 		if n == "Root" or not target then
 			continue
 		end
-		local k = if fast and (string.find(n, "Shoulder") or string.find(n, "Elbow") or n == "Waist") then kFast else kSlow
-		local c = a.cur[n]
-		c = c + (target - c) * k
-		a.cur[n] = c
+		local snappy = fast and (string.find(n, "Shoulder") ~= nil or string.find(n, "Elbow") ~= nil or n == "Waist")
+		local K = if snappy then 1500 elseif string.find(n, "Hip") or string.find(n, "Knee") then 520 else 360
+		local D = if snappy then 58 elseif string.find(n, "Hip") or string.find(n, "Knee") then 36 else 28
+		local c, v = a.cur[n], a.vel[n]
+		for _ = 1, steps do
+			v += ((target - c) * K - v * D) * h
+			c += v * h
+		end
+		a.cur[n], a.vel[n] = c, v
 		local m = a.motors[n]
 		if m then
 			m.Transform = CFrame.Angles(c.X, c.Y, c.Z)
 		end
 	end
+	local kFast = 1 - exp(-dt * 40)
+	local kSlow = 1 - exp(-dt * 16)
 	a.rootY += (rootY - a.rootY) * kSlow
 	if rootPitch ~= 0 then
 		a.rootPitch = rootPitch
@@ -464,7 +482,7 @@ local function animate(a: Anim, dt: number)
 	end
 	local rm = a.motors.Root
 	if rm then
-		rm.Transform = CFrame.new(0, a.rootY, 0) * CFrame.Angles(a.rootPitch, 0, 0)
+		rm.Transform = CFrame.new(0, a.rootY, 0) * CFrame.Angles(a.rootPitch, 0, a.rootRoll)
 	end
 end
 

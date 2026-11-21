@@ -3,10 +3,14 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Shared": { "$path": "src/shared" }
+      "Shared": {
+        "$path": "src/shared"
+      }
     },
     "ServerScriptService": {
-      "RumbleServer": { "$path": "src/server" }
+      "RumbleServer": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "$properties": {
@@ -14,23 +18,36 @@
         "CharacterJumpPower": 54,
         "CharacterUseJumpPower": true,
         "AutoJumpEnabled": false,
-        "GameSettingsAvatar": "R15"
+        "GameSettingsAvatar": "R15",
+        "DevComputerMovementMode": "Scriptable",
+        "DevTouchMovementMode": "Scriptable",
+        "EnableMouseLockOption": false
       },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "RumbleClient": { "$path": "src/client" }
+        "RumbleClient": {
+          "$path": "src/client"
+        }
       },
       "StarterCharacterScripts": {
         "$className": "StarterCharacterScripts",
-        "Animate": { "$path": "src/character/Animate.client.luau" },
-        "Health": { "$path": "src/character/Health.server.luau" }
+        "Animate": {
+          "$path": "src/character/Animate.client.luau"
+        },
+        "Health": {
+          "$path": "src/character/Health.server.luau"
+        }
       }
     },
     "Players": {
-      "$properties": { "CharacterAutoLoads": false }
+      "$properties": {
+        "CharacterAutoLoads": false
+      }
     },
     "Workspace": {
-      "$properties": { "Gravity": 165 }
+      "$properties": {
+        "Gravity": 165
+      }
     },
     "Lighting": {
       "$properties": {

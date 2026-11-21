@@ -30,7 +30,7 @@ local KEYS_LEFT = { [Enum.KeyCode.A] = true, [Enum.KeyCode.Left] = true }
 local KEYS_RIGHT = { [Enum.KeyCode.D] = true, [Enum.KeyCode.Right] = true }
 local KEYS_JUMP = { [Enum.KeyCode.W] = true, [Enum.KeyCode.Up] = true, [Enum.KeyCode.Space] = true }
 local KEYS_DOWN = { [Enum.KeyCode.S] = true, [Enum.KeyCode.Down] = true }
-local KEYS_THROW = { [Enum.KeyCode.F] = true, [Enum.KeyCode.E] = true, [Enum.KeyCode.Q] = true }
+local KEYS_THROW = { [Enum.KeyCode.F] = true, [Enum.KeyCode.Q] = true }
 local KEYS_ATTACK = { [Enum.KeyCode.J] = true, [Enum.KeyCode.Z] = true }
 local KEYS_BLOCK = { [Enum.KeyCode.K] = true, [Enum.KeyCode.X] = true, [Enum.KeyCode.LeftShift] = true }
 

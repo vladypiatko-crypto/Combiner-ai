@@ -4,6 +4,8 @@
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
+local Skins = require(script.Parent:WaitForChild("Skins"))
+
 local Effects = {}
 
 local folder: Folder
@@ -339,6 +341,66 @@ function Effects.text(pos: Vector3, text: string, color: Color3, size: number?, 
 		TweenService:Create(stroke, TweenInfo.new(l * 0.4), { Transparency = 1 }):Play()
 	end)
 	Debris:AddItem(gui, l + 0.05)
+end
+
+-- crescent slash arc (Blender mesh) for melee swings
+function Effects.slash(pos: Vector3, angle: number, color: Color3, facing: number, scale: number?)
+	local sc = scale or 1.3
+	local cf = CFrame.new(pos + Vector3.new(0, 0, 1.2)) * CFrame.Angles(0, 0, angle) * (if facing < 0 then CFrame.Angles(math.pi, 0, 0) else CFrame.identity)
+	local m = Skins.clone("fx_slash", cf, sc)
+	if m then
+		for _, p in m:GetChildren() do
+			if p:IsA("BasePart") then
+				p.Anchored = true
+				p.Color = color:Lerp(Color3.new(1, 1, 1), 0.35)
+				p.Transparency = 0.1
+				TweenService:Create(p, TweenInfo.new(0.22, Enum.EasingStyle.Quad), { Transparency = 1, Size = p.Size * 1.35 }):Play()
+			end
+		end
+		m.Parent = folder
+		Debris:AddItem(m, 0.25)
+	else
+		for i = -1, 1 do
+			local a = angle + i * 0.5
+			Effects.tracer(pos + dir2(a) * 1.2, pos + dir2(a + 0.4 * facing) * 3, color, 0.3)
+		end
+	end
+end
+
+-- little spinning stars (Blender mesh) for big hits
+function Effects.stars(pos: Vector3, color: Color3, n: number)
+	for _ = 1, n do
+		local a = rand(0, math.pi * 2)
+		local m = Skins.clone("fx_star", CFrame.new(pos) * CFrame.Angles(0, 0, a), rand(0.25, 0.45))
+		if not m then
+			Effects.spark(pos, color, 2, 30)
+			continue
+		end
+		local v = dir2(a) * rand(14, 26)
+		m.Parent = folder
+		local parts = {}
+		for _, p in m:GetChildren() do
+			if p:IsA("BasePart") then
+				p.Anchored = true
+				p.Color = color
+				table.insert(parts, p)
+			end
+		end
+		task.spawn(function()
+			local t0 = os.clock()
+			local pos0 = pos
+			while os.clock() - t0 < 0.55 and m.Parent do
+				local t = os.clock() - t0
+				local cf = CFrame.new(pos0 + v * t - Vector3.new(0, 30 * t * t, 0)) * CFrame.Angles(0, 0, a + t * 9)
+				m:PivotTo(cf)
+				for _, p in parts do
+					p.Transparency = math.clamp((t - 0.25) / 0.3, 0, 1)
+				end
+				task.wait()
+			end
+			m:Destroy()
+		end)
+	end
 end
 
 -- slash trail on melee weapons (attachments created by the server)

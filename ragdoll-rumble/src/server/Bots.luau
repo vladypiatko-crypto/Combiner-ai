@@ -15,6 +15,10 @@ local Combat = require(script.Parent:WaitForChild("Combat"))
 
 local Bots = {}
 
+-- admin-tweakable
+Bots.passive = false -- bots don't attack (handy for testing)
+Bots.difficulty = 1 -- multiplies bot skill (0.3 .. 1.6)
+
 local templates: { [number]: Model } = {}
 local templateFolder: Folder? = nil
 
@@ -43,8 +47,13 @@ function Bots.template(colorIndex: number): Model?
 	desc.LeftLegColor = c.dark
 	desc.RightLegColor = c.dark
 	local ok, model = pcall(function()
-		return Players:CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+		return (Players :: any):CreateHumanoidModelFromDescriptionAsync(desc, Enum.HumanoidRigType.R15)
 	end)
+	if not ok then
+		ok, model = pcall(function()
+			return (Players :: any):CreateHumanoidModelFromDescription(desc, Enum.HumanoidRigType.R15)
+		end)
+	end
 	if not ok or not model then
 		warn("[Ragdoll Rumble] could not build a bot avatar:", model)
 		return nil
@@ -125,13 +134,18 @@ function Bots.newBrain(seed: number, skill: number): Brain
 	}
 end
 
-local function geoParams(): RaycastParams
-	local rp = RaycastParams.new()
-	rp.FilterType = Enum.RaycastFilterType.Include
-	local arena = Arena.folder()
-	local geo = if arena then arena:FindFirstChild("Geometry") else nil
-	rp.FilterDescendantsInstances = if geo then { geo } else {}
-	return rp
+local paramsCache: { [string]: RaycastParams } = {}
+local function geoParams(zoneName: string): RaycastParams
+	local zone = Arena.zones[zoneName]
+	local rp = paramsCache[zoneName]
+	if not rp then
+		rp = RaycastParams.new()
+		rp.FilterType = Enum.RaycastFilterType.Include
+		paramsCache[zoneName] = rp
+	end
+	local r = rp :: RaycastParams
+	r.FilterDescendantsInstances = if zone then { zone.geometry } else {}
+	return r
 end
 
 local function groundBelow(rp: RaycastParams, x: number, y: number, depth: number): boolean
@@ -141,16 +155,37 @@ end
 function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 	local b = f.brain :: Brain
 	local hum = f.humanoid
-	if not f.alive or Combat.isRagdoll(f) or frozen then
+	local idle = f.isDummy and not (f :: any).sparring
+	if not f.alive or Combat.isRagdoll(f) or frozen or idle then
 		hum:Move(Vector3.zero, false)
 		f.blocking = false
+		if idle and f.alive and not Combat.isRagdoll(f) then
+			-- dummies just turn to face whoever is closest
+			local best, bestD = nil, 30
+			for _, o in Combat.fighters do
+				if o ~= f and o.zone == f.zone and o.alive then
+					local d = (o.root.Position - f.root.Position).Magnitude
+					if d < bestD then
+						best, bestD = o, d
+					end
+				end
+			end
+			if best then
+				local fo = f.root:FindFirstChild("Facing") :: AlignOrientation?
+				if fo then
+					fo.CFrame = Rig.facingCFrame(if best.root.Position.X >= f.root.Position.X then 1 else -1)
+				end
+			end
+		end
 		return
 	end
+	local zone = Arena.zones[f.zone]
+	local map = if zone then zone.map else nil
 	local rng = b.rng
 	local now = os.clock()
 	local root = f.root
 	local pos = root.Position
-	local rp = geoParams()
+	local rp = geoParams(f.zone)
 	local grounded = hum.FloorMaterial ~= Enum.Material.Air
 	if grounded then
 		b.djumpUsed = false
@@ -162,7 +197,8 @@ function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 	b.aimErrT -= dt
 	if b.aimErrT <= 0 then
 		b.aimErrT = rng:range(0.3, 0.8)
-		b.aimErr = rng:range(-1, 1) * (1 - b.skill) * 0.3
+		local skill = math.clamp(b.skill * Bots.difficulty, 0.05, 1)
+		b.aimErr = rng:range(-1, 1) * (1 - skill) * 0.3
 	end
 
 	-- target
@@ -171,7 +207,7 @@ function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 		b.retarget = rng:range(0.7, 1.5)
 		local best, bestD = nil, math.huge
 		for _, o in Combat.fighters do
-			if o ~= f and o.alive and o.model.Parent then
+			if o ~= f and o.alive and o.model.Parent and o.zone == f.zone and not o.isDummy then
 				local d = (o.root.Position - pos).Magnitude * rng:range(0.8, 1.25)
 				if d < bestD then
 					best, bestD = o, d
@@ -198,7 +234,7 @@ function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 				if m:IsA("Model") and m.PrimaryPart then
 					local pp = m.PrimaryPart.Position
 					local d = (pp - pos).Magnitude
-					if d < bestD and pp.Y > (if Arena.map then Arena.map.killY + 5 else -1e9) then
+					if d < bestD and pp.Y > (if map then map.killY + 5 else -1e9) and math.abs(pp.Y - pos.Y) < 200 then
 						best, bestD = pp, d
 					end
 				end
@@ -257,7 +293,7 @@ function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 	end
 
 	-- recovery: off stage -> head back to the middle, double jump
-	local bnd = if Arena.map then Arena.map.bounds else { left = -50, right = 50 }
+	local bnd = if map then map.bounds else { left = -50, right = 50 }
 	if not grounded and not groundBelow(rp, pos.X, pos.Y, 60) then
 		move = Util.sign((bnd.left + bnd.right) * 0.5 - pos.X)
 		if not b.djumpUsed and root.AssemblyLinearVelocity.Y < 4 then
@@ -340,7 +376,7 @@ function Bots.think(f: Combat.F, dt: number, frozen: boolean)
 		facingObj.CFrame = Rig.facingCFrame(if math.cos(f.aim) >= 0 then 1 else -1)
 	end
 
-	if not target or f.blocking then
+	if not target or f.blocking or Bots.passive then
 		return
 	end
 

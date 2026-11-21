@@ -1,8 +1,10 @@
 --!strict
--- Builds the 3D side-view arenas from the 2D layouts in Maps.luau.
--- Moving platforms are real physics bodies (rigid Align constraints) so they carry avatars.
+-- Builds zones (the lobby + the current match arena) from the 2D layouts in Maps.luau.
+-- Moving platforms are real physics bodies so they carry avatars. Props are tagged
+-- "RumbleSkin" so clients can dress them with the Blender meshes (fallback parts stay
+-- visible if mesh APIs are unavailable).
 
-local Lighting = game:GetService("Lighting")
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -13,12 +15,18 @@ local Arena = {}
 
 local DEPTH = 18
 
-local folder: Folder? = nil
-local movers: { { part: BasePart, ap: AlignPosition, ao: AlignOrientation, def: any } } = {}
-local hazards: { any } = {}
-local inkPart: BasePart? = nil
-Arena.map = nil :: any
-Arena.inkY = -math.huge
+export type Zone = {
+	name: string,
+	map: any,
+	folder: Folder,
+	geometry: Folder,
+	movers: { { part: BasePart, ap: AlignPosition, ao: AlignOrientation, def: any } },
+	hazards: { any },
+	inkPart: BasePart?,
+	inkY: number,
+}
+
+Arena.zones = {} :: { [string]: Zone }
 
 local function c3(hex: number): Color3
 	local r, g, b = Util.hexToRGB(hex)
@@ -40,6 +48,7 @@ local function part(props: { [string]: any }, parent: Instance?): BasePart
 	end
 	return p
 end
+Arena.part = part
 
 local function deco(props: { [string]: any }, parent: Instance): BasePart
 	local p = part(props, parent)
@@ -48,6 +57,16 @@ local function deco(props: { [string]: any }, parent: Instance): BasePart
 	p.CanTouch = false
 	p.CastShadow = false
 	return p
+end
+Arena.deco = deco
+
+-- invisible anchor that clients replace with a Blender mesh
+function Arena.skinAnchor(name: string, cf: CFrame, scale: number?, parent: Instance): BasePart
+	local a = deco({ Name = "Skin_" .. name, Size = Vector3.new(0.2, 0.2, 0.2), CFrame = cf, Transparency = 1 }, parent)
+	a:SetAttribute("Skin", name)
+	a:SetAttribute("SkinScale", scale or 1)
+	CollectionService:AddTag(a, "RumbleSkin")
+	return a
 end
 
 local function material(name: string?): Enum.Material
@@ -58,7 +77,7 @@ local function material(name: string?): Enum.Material
 end
 
 -------------------------------------------------------------------------------
--- backdrop / lighting per theme
+-- backdrop
 
 local function buildBackdrop(map: any, f: Folder)
 	local th = map.theme
@@ -108,7 +127,7 @@ local function buildBackdrop(map: any, f: Folder)
 		}, decor)
 	end
 
-	if kind == "city" then
+	if kind == "city" or kind == "lobby" then
 		for i = 1, 28 do
 			block(cx - 220 + i * 16 + rng:range(-4, 4), rng:range(10, 18), rng:range(40, 110), -220, 20, far)
 		end
@@ -135,9 +154,7 @@ local function buildBackdrop(map: any, f: Folder)
 		end
 	elseif kind == "factory" then
 		for i = 1, 10 do
-			local h = rng:range(60, 120)
-			local x = cx - 160 + i * 32 + rng:range(-6, 6)
-			block(x, rng:range(6, 10), h, -180, 8, far, Enum.Material.Brick)
+			block(cx - 160 + i * 32 + rng:range(-6, 6), rng:range(6, 10), rng:range(60, 120), -180, 8, far, Enum.Material.Brick)
 		end
 		for i = 1, 4 do
 			local r = rng:range(12, 20)
@@ -145,15 +162,11 @@ local function buildBackdrop(map: any, f: Folder)
 		end
 	elseif kind == "temple" then
 		for i = 0, 7 do
-			local w = 150 - i * 18
-			deco({ Size = Vector3.new(w, 10, 40), CFrame = CFrame.new(cx, ground + 5 + i * 10, -220), Color = far:Lerp(Color3.new(0, 0, 0), i * 0.03), Material = Enum.Material.Slate }, decor)
+			deco({ Size = Vector3.new(150 - i * 18, 10, 40), CFrame = CFrame.new(cx, ground + 5 + i * 10, -220), Color = far:Lerp(Color3.new(0, 0, 0), i * 0.03), Material = Enum.Material.Slate }, decor)
 		end
 		for i = 1, 12 do
 			local x = cx - 140 + i * 24
 			block(x, 5, rng:range(45, 80), -110, 5, near, Enum.Material.Slate)
-			for k = 1, 3 do
-				deco({ Size = Vector3.new(0.6, rng:range(8, 18), 0.6), CFrame = CFrame.new(x + rng:range(-3, 3), cy + 44 - k * 4, -100), Color = c3(0x3f7d3a), Material = Enum.Material.Grass }, decor)
-			end
 		end
 	elseif kind == "arctic" then
 		for i = 1, 12 do
@@ -185,12 +198,6 @@ local function buildBackdrop(map: any, f: Folder)
 			block(x, w, h, -200, 40, far, Enum.Material.Sandstone)
 			block(x, w * 0.7, h + 8, -205, 30, far:Lerp(Color3.new(0, 0, 0), 0.1), Enum.Material.Sandstone)
 		end
-		for i = 1, 10 do
-			local x = cx - 140 + i * 28 + rng:range(-6, 6)
-			local h = rng:range(7, 13)
-			block(x, 1.8, h, -100, 1.8, c3(0x3e6b3a), Enum.Material.Grass)
-			deco({ Size = Vector3.new(4.5, 1.4, 1.4), CFrame = CFrame.new(x, ground + h * 0.6, -100), Color = c3(0x3e6b3a), Material = Enum.Material.Grass }, decor)
-		end
 	elseif kind == "neon" then
 		for i = -16, 16 do
 			deco({ Size = Vector3.new(0.4, 0.4, 300), CFrame = CFrame.new(cx + i * 16, b.bottom - 6, -160), Color = c3(th.ledge), Material = Enum.Material.Neon, Transparency = 0.3 }, decor)
@@ -198,30 +205,21 @@ local function buildBackdrop(map: any, f: Folder)
 		for i = 1, 10 do
 			deco({ Size = Vector3.new(700, 0.4, 0.4), CFrame = CFrame.new(cx, b.bottom - 6, -10 - i * i * 3), Color = c3(th.edge), Material = Enum.Material.Neon, Transparency = 0.3 }, decor)
 		end
-		for i = 1, 6 do
-			deco({ Size = Vector3.new(90, 3, 2), CFrame = CFrame.new(sun.Position.X, sun.Position.Y - 6 - i * 6, -255), Color = c3(th.skyBottom) }, decor)
-		end
 	end
-
-	-- lighting mood
-	Lighting.ClockTime = th.clock or 14
-	Lighting.Brightness = if kind == "neon" or kind == "lab" then 1.2 else 2.2
-	Lighting.Ambient = c3(th.skyTop):Lerp(Color3.new(1, 1, 1), 0.45)
-	Lighting.OutdoorAmbient = c3(th.skyBottom):Lerp(Color3.new(1, 1, 1), 0.35)
-	Lighting.EnvironmentDiffuseScale = 0.4
-	Lighting.EnvironmentSpecularScale = 0.4
-	Lighting.FogEnd = 100000
-	Lighting.GlobalShadows = true
-	local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
-	if atmo then
-		atmo:Destroy()
+	if kind == "lobby" then
+		-- back wall of the arcade hall with neon strips
+		deco({ Size = Vector3.new(164, 44, 2), CFrame = CFrame.new(0, 1019, -10), Color = c3(0x1c1834), Material = Enum.Material.SmoothPlastic }, decor)
+		for i = 0, 3 do
+			deco({ Size = Vector3.new(164, 0.4, 0.3), CFrame = CFrame.new(0, 1003 + i * 9, -8.9), Color = if i % 2 == 0 then c3(th.edge) else c3(th.accent), Material = Enum.Material.Neon }, decor)
+		end
 	end
 end
 
 -------------------------------------------------------------------------------
 -- geometry
 
-local function buildBlock(def: any, th: any, f: Folder, index: number)
+local function buildBlock(zone: Zone, def: any, index: number)
+	local th = zone.map.theme
 	local depth = def.depth or DEPTH
 	local style = def.style
 	local col = c3(if style == "ledge" or style == "cabin" or style == "lift" then th.ledge else th.block)
@@ -231,15 +229,14 @@ local function buildBlock(def: any, th: any, f: Folder, index: number)
 		CFrame = CFrame.new(def.x, def.y, 0) * CFrame.Angles(0, 0, math.rad(def.angle or 0)),
 		Color = col,
 		Material = material(th.material),
-	}, f)
-	-- bright top edge so platforms read clearly from the side
+	}, zone.geometry)
 	local edgeH = math.min(0.6, def.h * 0.45)
 	local edge = deco({
 		Name = "Edge",
 		Size = Vector3.new(def.w + 0.1, edgeH, depth + 0.1),
 		CFrame = p.CFrame * CFrame.new(0, def.h * 0.5 - edgeH * 0.5 + 0.02, 0),
 		Color = c3(th.edge),
-		Material = if th.kind == "neon" or th.kind == "lab" then Enum.Material.Neon else material(th.material),
+		Material = if th.kind == "neon" or th.kind == "lab" or th.kind == "lobby" then Enum.Material.Neon else material(th.material),
 	}, p)
 	if style == "ice" then
 		p.Material = Enum.Material.Glacier
@@ -260,19 +257,16 @@ local function buildBlock(def: any, th: any, f: Folder, index: number)
 		edge.Color = c3(0x3a3530)
 		p.AssemblyLinearVelocity = Vector3.new(def.conveyor or 0, 0, 0)
 		p:SetAttribute("Conveyor", def.conveyor or 0)
-		-- hazard stripes along the front face
 		for i = 0, math.floor(def.w / 3) do
 			deco({ Size = Vector3.new(1.2, def.h * 0.6, 0.2), CFrame = CFrame.new(def.x - def.w * 0.5 + i * 3 + 1, def.y - 0.4, depth * 0.5 + 0.1) * CFrame.Angles(0, 0, math.rad(30)), Color = c3(th.edge), Material = Enum.Material.Neon }, p)
 		end
-	elseif style == "lift" then
+	elseif style == "lift" or style == "cabin" then
 		edge.Material = Enum.Material.Neon
-	elseif style == "cabin" then
-		edge.Material = Enum.Material.Neon
-		edge.Color = Color3.fromHSV((index * 0.17) % 1, 0.65, 1)
+		if style == "cabin" then
+			edge.Color = Color3.fromHSV((index * 0.17) % 1, 0.65, 1)
+		end
 	end
-
 	if def.motion then
-		-- physical mover: unanchored + rigid alignment, server owned
 		local w = Instance.new("WeldConstraint")
 		w.Part0 = p
 		w.Part1 = edge
@@ -295,15 +289,15 @@ local function buildBlock(def: any, th: any, f: Folder, index: number)
 		ao.RigidityEnabled = true
 		ao.CFrame = p.CFrame.Rotation
 		ao.Parent = p
-		table.insert(movers, { part = p, ap = ap, ao = ao, def = def })
+		table.insert(zone.movers, { part = p, ap = ap, ao = ao, def = def })
 		pcall(function()
 			p:SetNetworkOwner(nil)
 		end)
 	end
-	return p
 end
 
-local function buildHazard(def: any, th: any, f: Folder, index: number)
+local function buildHazard(zone: Zone, def: any, index: number)
+	local f = zone.folder
 	if def.kind == "saw" then
 		local r = def.r
 		local saw = deco({
@@ -316,6 +310,7 @@ local function buildHazard(def: any, th: any, f: Folder, index: number)
 		}, f)
 		saw:SetAttribute("SawIndex", index)
 		saw:SetAttribute("Radius", r)
+		saw:SetAttribute("Fallback", true)
 		local n = math.max(8, math.floor(r * 3))
 		for i = 1, n do
 			local a = i / n * math.pi * 2
@@ -325,6 +320,7 @@ local function buildHazard(def: any, th: any, f: Folder, index: number)
 				Color = c3(0xe6ebf2),
 				Material = Enum.Material.Metal,
 			}, saw)
+			tooth:SetAttribute("Fallback", true)
 			local wc = Instance.new("WeldConstraint")
 			wc.Part0 = saw
 			wc.Part1 = tooth
@@ -332,62 +328,67 @@ local function buildHazard(def: any, th: any, f: Folder, index: number)
 			tooth.Anchored = false
 			tooth.Massless = true
 		end
-		local hub = deco({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.3, r * 0.6, r * 0.6), CFrame = saw.CFrame, Color = c3(0xd62828), Material = Enum.Material.Neon }, saw)
+		-- the Blender saw mesh is modeled facing the camera (radius 1)
+		local anchor = Arena.skinAnchor("saw", CFrame.new(def.x, def.y, 0), r, saw)
+		anchor.Anchored = false
 		local wc = Instance.new("WeldConstraint")
 		wc.Part0 = saw
-		wc.Part1 = hub
-		wc.Parent = hub
-		hub.Anchored = false
-		hub.Massless = true
-		table.insert(hazards, { kind = "saw", def = def, part = saw })
+		wc.Part1 = anchor
+		wc.Parent = anchor
+		table.insert(zone.hazards, { kind = "saw", def = def, part = saw })
 	elseif def.kind == "spikes" then
-		local base = deco({ Size = Vector3.new(def.w, def.h * 1.2, DEPTH - 2), CFrame = CFrame.new(def.x, def.y - def.h * 0.4, 0), Color = c3(0x3a1f24) }, f)
+		local holder = Instance.new("Model")
+		holder.Name = "Spikes" .. index
+		holder.Parent = f
+		deco({ Size = Vector3.new(def.w, def.h * 1.2, DEPTH - 2), CFrame = CFrame.new(def.x, def.y - def.h * 0.4, 0), Color = c3(0x3a1f24) }, holder)
 		local n = math.max(1, math.floor(def.w / 1.3))
 		local step = def.w / n
 		for i = 1, n do
 			for k = -2, 2 do
-				deco({
+				local x, z = def.x - def.w * 0.5 + step * (i - 0.5), k * 3.2
+				local d = deco({
 					Size = Vector3.new(step * 0.7, step * 0.7, step * 0.7),
-					CFrame = CFrame.new(def.x - def.w * 0.5 + step * (i - 0.5), def.y, k * 3.2) * CFrame.Angles(0, math.rad(45), math.rad(45)),
+					CFrame = CFrame.new(x, def.y, z) * CFrame.Angles(0, math.rad(45), math.rad(45)),
 					Color = c3(0xd8dde6),
 					Material = Enum.Material.Metal,
-				}, base)
+				}, holder)
+				d:SetAttribute("Fallback", true)
+				Arena.skinAnchor("spike", CFrame.new(x, def.y - def.h * 0.5, z), step * 0.9, holder)
 			end
 		end
-		table.insert(hazards, { kind = "spikes", def = def })
+		table.insert(zone.hazards, { kind = "spikes", def = def })
 	end
 end
 
-function Arena.clear()
-	if folder then
-		folder:Destroy()
+-------------------------------------------------------------------------------
+
+function Arena.clear(name: string)
+	local z = Arena.zones[name]
+	if z then
+		z.folder:Destroy()
+		Arena.zones[name] = nil
 	end
-	folder = nil
-	movers = {}
-	hazards = {}
-	inkPart = nil
-	Arena.inkY = -math.huge
 end
 
-function Arena.build(map: any)
-	Arena.clear()
-	Arena.map = map
+function Arena.build(name: string, map: any): Zone
+	Arena.clear(name)
 	local f = Instance.new("Folder")
-	f.Name = "Arena"
+	f.Name = if name == "lobby" then "Lobby" else "Arena"
+	f:SetAttribute("Zone", name)
 	f.Parent = workspace
-	folder = f
-	local th = map.theme
-	buildBackdrop(map, f)
 	local geo = Instance.new("Folder")
 	geo.Name = "Geometry"
 	geo.Parent = f
+	local zone: Zone = { name = name, map = map, folder = f, geometry = geo, movers = {}, hazards = {}, inkPart = nil, inkY = -math.huge }
+	Arena.zones[name] = zone
+	buildBackdrop(map, f)
 	for i, def in map.blocks do
-		buildBlock(def, th, geo, i)
+		buildBlock(zone, def, i)
 	end
 	for i, def in map.hazards do
-		buildHazard(def, th, f, i)
+		buildHazard(zone, def, i)
 	end
-	-- ferris wheel hub + struts
+	local th = map.theme
 	if map.wheel then
 		local w = map.wheel
 		deco({ Shape = Enum.PartType.Cylinder, Size = Vector3.new(3, 5, 5), CFrame = CFrame.new(w.x, w.y, -6) * CFrame.Angles(0, math.pi / 2, 0), Color = c3(th.accent), Material = Enum.Material.Neon }, f)
@@ -396,45 +397,54 @@ function Arena.build(map: any)
 			deco({ Size = Vector3.new(2, hgt, 2), CFrame = CFrame.new(w.x + s * 5, w.y - hgt * 0.5, -7) * CFrame.Angles(0, 0, math.rad(s * 12)), Color = c3(th.block), Material = Enum.Material.Metal }, f)
 		end
 	end
-	-- pendulum pivots
 	for _, def in map.blocks do
 		local m = def.motion
 		if m and m.type == "pendulum" then
 			deco({ Shape = Enum.PartType.Ball, Size = Vector3.new(2.4, 2.4, 2.4), CFrame = CFrame.new(m.px, m.py, -2), Color = c3(th.accent), Material = Enum.Material.Metal }, f)
 		end
 	end
-	-- the ink pool (rises during sudden death)
-	local ink = deco({ Name = "Ink", Size = Vector3.new(1400, 200, 200), Color = c3(th.ink), Material = Enum.Material.Neon, Transparency = 0.25 }, f)
-	inkPart = ink
-	Arena.setInk(map.killY)
+	if name ~= "lobby" then
+		local ink = deco({ Name = "Ink", Size = Vector3.new(1400, 200, 200), Color = c3(th.ink), Material = Enum.Material.Neon, Transparency = 0.25 }, f)
+		zone.inkPart = ink
+		Arena.setInk(name, map.killY)
+	end
 	Arena.update(0)
+	return zone
 end
 
-function Arena.setInk(y: number)
-	Arena.inkY = y
-	if inkPart then
-		inkPart.CFrame = CFrame.new(0, y - 100, -60)
+function Arena.setInk(name: string, y: number)
+	local z = Arena.zones[name]
+	if not z then
+		return
+	end
+	z.inkY = y
+	if z.inkPart then
+		z.inkPart.CFrame = CFrame.new(0, y - 100, -60)
 	end
 end
 
 function Arena.update(t: number)
-	for _, m in movers do
-		local d = m.def
-		local x, y, a = Motion.pose(d.motion, d.x, d.y, math.rad(d.angle or 0), t)
-		m.ap.Position = Vector3.new(x, y, 0)
-		m.ao.CFrame = CFrame.Angles(0, 0, a)
+	for _, z in Arena.zones do
+		for _, m in z.movers do
+			local d = m.def
+			local x, y, a = Motion.pose(d.motion, d.x, d.y, math.rad(d.angle or 0), t)
+			m.ap.Position = Vector3.new(x, y, 0)
+			m.ao.CFrame = CFrame.Angles(0, 0, a)
+		end
 	end
 end
 
--- hazard touching a sphere at pos? returns kind and push direction
-function Arena.hazardAt(pos: Vector3, radius: number, t: number): (string?, Vector3)
-	for _, h in hazards do
+function Arena.hazardAt(name: string, pos: Vector3, radius: number, t: number): (string?, Vector3)
+	local z = Arena.zones[name]
+	if not z then
+		return nil, Vector3.zero
+	end
+	for _, h in z.hazards do
 		local d = h.def
 		if h.kind == "saw" then
 			local x, y = Motion.pose(d.motion, d.x, d.y, 0, t)
 			local dx, dy = pos.X - x, pos.Y - y
-			local dist = math.sqrt(dx * dx + dy * dy)
-			if dist < d.r + radius then
+			if math.sqrt(dx * dx + dy * dy) < d.r + radius then
 				local nx, ny = Util.norm(dx, dy)
 				if nx == 0 and ny == 0 then
 					ny = 1
@@ -450,15 +460,20 @@ function Arena.hazardAt(pos: Vector3, radius: number, t: number): (string?, Vect
 	return nil, Vector3.zero
 end
 
-function Arena.folder(): Folder?
-	return folder
+function Arena.zone(name: string): Zone?
+	return Arena.zones[name]
 end
 
-function Arena.spawnCFrame(x: number, y: number): CFrame
-	local map = Arena.map
-	local cx = if map then (map.bounds.left + map.bounds.right) * 0.5 else 0
+function Arena.spawnCFrame(name: string, x: number, y: number): CFrame
+	local z = Arena.zones[name]
+	local cx = if z then (z.map.bounds.left + z.map.bounds.right) * 0.5 else 0
 	local facing = if x > cx then -1 else 1
 	return CFrame.new(x, y + 3.4, 0) * CFrame.Angles(0, if facing > 0 then -math.pi / 2 else math.pi / 2, 0)
+end
+
+-- which zone is this point in (lobby sits far above the arenas)
+function Arena.zoneAt(pos: Vector3): string
+	return if pos.Y > 600 then "lobby" else "arena"
 end
 
 return Arena

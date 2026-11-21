@@ -3,6 +3,7 @@
 -- Players detect their own hits (snappy feel) and the server validates them; bots and
 -- projectiles are resolved fully on the server.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -25,6 +26,9 @@ export type F = {
 	root: BasePart,
 	player: Player?,
 	isBot: boolean,
+	isDummy: boolean,
+	zone: string,
+	god: boolean,
 	alive: boolean,
 	wid: number,
 	ammo: number,
@@ -58,6 +62,7 @@ type Pickup = {
 	thrownBy: number,
 	thrownAt: number,
 	dangerous: boolean,
+	zone: string,
 }
 
 type Proj = {
@@ -82,6 +87,9 @@ Combat.hooks = {
 	end,
 	roundTime = function(): number
 		return 0
+	end,
+	finisherOf = function(_fid: number): string?
+		return nil
 	end,
 }
 
@@ -235,6 +243,15 @@ function Combat.buildWeaponModel(w: Weapons.Weapon, physical: boolean): (Model, 
 	base.Position = Vector3.new(math.min(0.6, w.length * 0.3), 0, 0)
 	base.Parent = handle
 	m:SetAttribute("Wid", w.id)
+	-- clients swap the box parts for the Blender mesh
+	for _, d in m:GetChildren() do
+		if d:IsA("BasePart") and d ~= handle then
+			d:SetAttribute("Fallback", true)
+		end
+	end
+	handle:SetAttribute("Skin", w.key)
+	handle:SetAttribute("SkinScale", 1)
+	CollectionService:AddTag(handle, "RumbleSkin")
 	return m, handle
 end
 
@@ -343,13 +360,14 @@ function Combat.spawnPickup(wid: number, pos: Vector3, vel: Vector3, ammo: numbe
 		thrownBy = thrownBy or 0,
 		thrownAt = if thrownBy then clock() else 0,
 		dangerous = thrownBy ~= nil and vel.Magnitude > 30,
+		zone = Arena.zoneAt(pos),
 	})
 end
 
-function Combat.groundWeaponCount(): number
+function Combat.groundWeaponCount(zone: string?): number
 	local n = 0
 	for _, p in pickups do
-		if p.thrownBy == 0 then
+		if p.thrownBy == 0 and (zone == nil or p.zone == zone) then
 			n += 1
 		end
 	end
@@ -375,9 +393,10 @@ end
 
 local function updatePickups(_dt: number)
 	local now = clock()
-	local map = Arena.map
 	for i = #pickups, 1, -1 do
 		local p = pickups[i]
+		local z = Arena.zones[p.zone]
+		local map = if z then z.map else nil
 		local h = p.handle
 		if not p.model.Parent or not h.Parent then
 			table.remove(pickups, i)
@@ -477,7 +496,7 @@ export type HitInfo = {
 }
 
 function Combat.damage(victim: F, attackerFid: number, info: HitInfo)
-	if not Combat.hooks.active() then
+	if victim.zone == "arena" and not Combat.hooks.active() then
 		return
 	end
 	local dir = info.dir
@@ -507,6 +526,15 @@ function Combat.damage(victim: F, attackerFid: number, info: HitInfo)
 	end
 
 	local pos = info.pos or victim.root.Position
+	-- lobby: everyone can shove each other around, only training dummies take damage
+	if victim.zone == "lobby" and not victim.isDummy then
+		damage = 0
+		knock *= 0.6
+		ragdoll = math.min(ragdoll, 0.6)
+	end
+	if victim.god then
+		damage = 0
+	end
 	if not victim.alive then
 		Combat.knock(victim, dir * knock + Vector3.new(0, (info.up or 0.35) * knock, 0), 0)
 		return
@@ -591,7 +619,8 @@ function Combat.onDied(f: F)
 	end
 	Combat.knock(f, vel, 0)
 	local killer = if clock() - f.lastHitTime < 5 then f.lastHitBy else 0
-	sendAll({ t = "Died", fid = f.fid, killer = killer, cause = f.deathCause })
+	local finisher = if killer ~= 0 and killer ~= f.fid then Combat.hooks.finisherOf(killer) else nil
+	sendAll({ t = "Died", fid = f.fid, killer = killer, cause = f.deathCause, finisher = finisher, zone = f.zone })
 	Combat.hooks.onDeath(f, killer, f.deathCause)
 end
 
@@ -753,7 +782,8 @@ local function updateProjectiles(dt: number)
 			end
 		end
 		pr.last = p.Position
-		local map = Arena.map
+		local z = Arena.zones[Arena.zoneAt(pos)]
+		local map = if z then z.map else nil
 		if map and pos.Y < map.killY - 20 then
 			p:Destroy()
 			table.remove(projectiles, i)
@@ -810,7 +840,7 @@ end
 local function meleeVictims(att: F, center: Vector3, radius: number): { F }
 	local out = {}
 	for _, o in Combat.fighters do
-		if o ~= att and o.alive and Combat.distToBody(o, center) < radius then
+		if o ~= att and o.alive and o.zone == att.zone and Combat.distToBody(o, center) < radius then
 			table.insert(out, o)
 		end
 	end
@@ -975,7 +1005,7 @@ function Combat.onHit(f: F, msg: any)
 		return
 	end
 	local victim = Combat.fighters[num(msg.victim, -1)]
-	if not victim or victim == f then
+	if not victim or victim == f or victim.zone ~= f.zone then
 		return
 	end
 	local kind = msg.kind
@@ -1032,7 +1062,7 @@ function Combat.onShoot(f: F, msg: any)
 			continue
 		end
 		local victim = Combat.fighters[num(h.fid, -1)]
-		if not victim or victim == f or not victim.alive then
+		if not victim or victim == f or not victim.alive or victim.zone ~= f.zone then
 			continue
 		end
 		local hp = Vector3.new(num(h.x, 0), num(h.y, 0), 0)
@@ -1106,67 +1136,69 @@ end
 
 function Combat.update(dt: number, roundT: number)
 	local now = clock()
-	local map = Arena.map
 	for _, f in Combat.fighters do
 		if not f.model.Parent then
 			continue
 		end
 		f.stagger = math.max(0, f.stagger - Config.STAGGER_DECAY * dt)
 		f.hazardCd = math.max(0, f.hazardCd - dt)
-		-- bots are server owned: keep them on the plane + end knockbacks
+		-- bots / dummies are server owned: keep them on the plane + end knockbacks
 		if not f.player then
 			Rig.lockPlane(f.model, f.root, if Combat.isRagdoll(f) or not f.alive then Rig.bodyParts(f.model) else nil)
 			if f.knockLV and f.knockLV.Enabled and now > f.knockUntil then
 				f.knockLV.Enabled = false
 			end
 		end
-		if f.alive then
-			-- get back up
-			if f.ragdollUntil > 0 and now > f.ragdollUntil then
-				f.ragdollUntil = 0
-				Rig.setRagdoll(f.model, false)
-				if f.player then
-					Event:FireClient(f.player, { t = "GetUp" })
-				else
-					f.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		if not f.alive then
+			continue
+		end
+		-- get back up
+		if f.ragdollUntil > 0 and now > f.ragdollUntil then
+			f.ragdollUntil = 0
+			Rig.setRagdoll(f.model, false)
+			if f.player then
+				Event:FireClient(f.player, { t = "GetUp" })
+			else
+				f.humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+			end
+		end
+		-- empty guns get tossed
+		if f.discardAt > 0 and now > f.discardAt then
+			f.discardAt = 0
+			if f.wid ~= 0 and f.ammo <= 0 then
+				Combat.throwWeapon(f, f.aim)
+			end
+		end
+		local zone = Arena.zones[f.zone]
+		local pos = f.root.Position
+		if zone then
+			local map = zone.map
+			local floor = math.max(map.killY, zone.inkY)
+			if pos.Y < floor or pos.X < map.bounds.left - 45 or pos.X > map.bounds.right + 45 then
+				Combat.kill(f, "fell")
+				continue
+			end
+		end
+		if f.hazardCd <= 0 and (f.zone ~= "arena" or Combat.hooks.active()) then
+			local kind, n = Arena.hazardAt(f.zone, pos, 1.6, roundT)
+			if not kind then
+				local head = f.model:FindFirstChild("Head") :: BasePart?
+				if head then
+					kind, n = Arena.hazardAt(f.zone, head.Position, 0.8, roundT)
 				end
 			end
-			-- empty guns get tossed
-			if f.discardAt > 0 and now > f.discardAt then
-				f.discardAt = 0
-				if f.wid ~= 0 and f.ammo <= 0 then
-					Combat.throwWeapon(f, f.aim)
-				end
-			end
-			local pos = f.root.Position
-			if map then
-				local floor = math.max(map.killY, Arena.inkY)
-				if pos.Y < floor or pos.X < map.bounds.left - 45 or pos.X > map.bounds.right + 45 then
-					Combat.kill(f, "fell")
-					continue
-				end
-			end
-			if f.hazardCd <= 0 and Combat.hooks.active() then
-				local kind, n = Arena.hazardAt(pos, 1.6, roundT)
-				if not kind then
-					local head = f.model:FindFirstChild("Head") :: BasePart?
-					if head then
-						kind, n = Arena.hazardAt(head.Position, 0.8, roundT)
-					end
-				end
-				if kind then
-					f.hazardCd = 0.5
-					Combat.damage(f, if now - f.lastHitTime < 4 then f.lastHitBy else 0, {
-						damage = if kind == "saw" then 22 else 30,
-						dir = n,
-						knock = if kind == "saw" then 75 else 55,
-						up = if kind == "saw" then 0.3 else 0.6,
-						ragdoll = 0.8,
-						kind = kind,
-						pos = pos,
-					})
-					sendAll({ t = "Hazard", fid = f.fid, kind = kind, x = pos.X, y = pos.Y })
-				end
+			if kind then
+				f.hazardCd = 0.5
+				Combat.damage(f, if now - f.lastHitTime < 4 then f.lastHitBy else 0, {
+					damage = if kind == "saw" then 22 else 30,
+					dir = n,
+					knock = if kind == "saw" then 75 else 55,
+					up = if kind == "saw" then 0.3 else 0.6,
+					ragdoll = 0.8,
+					kind = kind,
+					pos = pos,
+				})
+				sendAll({ t = "Hazard", fid = f.fid, kind = kind, x = pos.X, y = pos.Y })
 			end
 		end
 	end
@@ -1174,22 +1206,29 @@ function Combat.update(dt: number, roundT: number)
 	updateProjectiles(dt)
 end
 
-function Combat.reset()
-	for _, p in pickups do
-		p.model:Destroy()
-	end
-	pickups = {}
-	for _, p in projectiles do
-		p.part:Destroy()
-	end
-	projectiles = {}
-	folder("Pickups"):ClearAllChildren()
-	folder("Projectiles"):ClearAllChildren()
-	for fid, f in Combat.fighters do
-		if f.isBot and f.model.Parent then
-			f.model:Destroy()
+-- clear a zone: its pickups + projectiles, and (for the arena) its bots
+function Combat.reset(zone: string)
+	for i = #pickups, 1, -1 do
+		local p = pickups[i]
+		if p.zone == zone then
+			p.model:Destroy()
+			table.remove(pickups, i)
 		end
-		Combat.fighters[fid] = nil
+	end
+	for i = #projectiles, 1, -1 do
+		local pr = projectiles[i]
+		if Arena.zoneAt(pr.last) == zone then
+			pr.part:Destroy()
+			table.remove(projectiles, i)
+		end
+	end
+	for fid, f in Combat.fighters do
+		if f.zone == zone and not f.isDummy then
+			if f.isBot and f.model.Parent then
+				f.model:Destroy()
+			end
+			Combat.fighters[fid] = nil
+		end
 	end
 end
 
@@ -1204,7 +1243,16 @@ function Combat.unregister(fid: number)
 	Combat.fighters[fid] = nil
 end
 
-function Combat.newFighter(fid: number, name: string, colorIndex: number, model: Model, player: Player?): F
+function Combat.forPlayer(player: Player): F?
+	for _, f in Combat.fighters do
+		if f.player == player then
+			return f
+		end
+	end
+	return nil
+end
+
+function Combat.newFighter(fid: number, name: string, colorIndex: number, model: Model, player: Player?, zone: string, isDummy: boolean?): F
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local root = model:FindFirstChild("HumanoidRootPart") :: BasePart
 	local knock = root:FindFirstChild("Knock") :: LinearVelocity?
@@ -1217,6 +1265,9 @@ function Combat.newFighter(fid: number, name: string, colorIndex: number, model:
 		root = root,
 		player = player,
 		isBot = player == nil,
+		isDummy = isDummy == true,
+		zone = zone,
+		god = false,
 		alive = true,
 		wid = 0,
 		ammo = 0,

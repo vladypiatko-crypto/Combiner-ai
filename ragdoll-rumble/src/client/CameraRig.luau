@@ -12,6 +12,8 @@ local trauma = 0
 local punch = Vector2.zero
 local bounds = { left = -60, right = 60, bottom = -30, top = 50 }
 local t = 0
+local zoomPunch = 0
+CameraRig.shakeEnabled = true
 
 function CameraRig.reset(b: { left: number, right: number, bottom: number, top: number })
 	bounds = b
@@ -22,7 +24,20 @@ function CameraRig.reset(b: { left: number, right: number, bottom: number, top: 
 end
 
 function CameraRig.shake(amount: number)
-	trauma = math.min(1, trauma + amount)
+	if CameraRig.shakeEnabled then
+		trauma = math.min(1, trauma + amount)
+	end
+end
+
+-- quick zoom-in on heavy impacts
+function CameraRig.punchZoom(amount: number)
+	if CameraRig.shakeEnabled then
+		zoomPunch = math.min(0.25, zoomPunch + amount)
+	end
+end
+
+function CameraRig.setBounds(b: { left: number, right: number, bottom: number, top: number })
+	bounds = b
 end
 
 -- directional kick (e.g. recoil / big hit)
@@ -30,7 +45,7 @@ function CameraRig.kick(dx: number, dy: number)
 	punch += Vector2.new(dx, dy)
 end
 
-function CameraRig.update(dt: number, targets: { Vector2 }, zoomBias: number?)
+function CameraRig.update(dt: number, targets: { Vector2 }, zoomBias: number?, snap: boolean?)
 	cam = workspace.CurrentCamera
 	cam.CameraType = Enum.CameraType.Scriptable
 	cam.FieldOfView = FOV
@@ -71,8 +86,8 @@ function CameraRig.update(dt: number, targets: { Vector2 }, zoomBias: number?)
 	end
 	ty = math.clamp(ty, bounds.bottom + th * 0.5 - 6, bounds.top - th * 0.5 + 10)
 
-	local k = 1 - math.exp(-dt * 3.2)
-	local kz = 1 - math.exp(-dt * 2.2)
+	local k = if snap then 1 else 1 - math.exp(-dt * 3.2)
+	local kz = if snap then 1 else 1 - math.exp(-dt * 2.2)
 	cx += (tx - cx) * k
 	cy += (ty - cy) * k
 	h += (th - h) * kz
@@ -84,9 +99,11 @@ function CameraRig.update(dt: number, targets: { Vector2 }, zoomBias: number?)
 	local sy = (math.noise(0.7, t * 25) * 2) * s * 1.4 + punch.Y
 	local roll = math.noise(t * 20, 4.2) * s * 0.035
 
-	local dist = (h * 0.5) / math.tan(math.rad(FOV * 0.5))
+	zoomPunch = math.max(0, zoomPunch - dt * 1.2)
+	local hh = h * (1 - zoomPunch)
+	local dist = (hh * 0.5) / math.tan(math.rad(FOV * 0.5))
 	-- a slight look-down angle shows off the 3D depth of the arena
-	local eye = Vector3.new(cx + sx, cy + sy + h * 0.2, dist)
+	local eye = Vector3.new(cx + sx, cy + sy + hh * 0.2, dist)
 	cam.CFrame = CFrame.lookAt(eye, Vector3.new(cx + sx, cy + sy, 0)) * CFrame.Angles(0, 0, roll)
 	cam.Focus = CFrame.new(cx, cy, 0)
 end

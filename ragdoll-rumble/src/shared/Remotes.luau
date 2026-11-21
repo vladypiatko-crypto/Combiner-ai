@@ -30,5 +30,7 @@ end
 Remotes.Event = get("Event", "RemoteEvent") :: RemoteEvent
 -- unreliable aim / flag stream (both directions)
 Remotes.State = get("State", "UnreliableRemoteEvent") :: UnreliableRemoteEvent
+-- request / response for menus (crate rolls, equipping, admin actions)
+Remotes.Request = get("Request", "RemoteFunction") :: RemoteFunction
 
 return Remotes

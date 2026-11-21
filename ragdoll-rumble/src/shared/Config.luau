@@ -40,6 +40,31 @@ Config.WEAPON_SPAWN_MAX = 7
 Config.MAX_GROUND_WEAPONS = 6
 Config.WEAPON_DESPAWN = 30
 
+-- Lobby / match flow
+Config.INTERMISSION = 25 -- lobby countdown before a match
+Config.SOLO_INTERMISSION = 12 -- shorter when you're alone
+Config.READY_SHORTCUT = 4 -- everyone ready -> start in this many seconds
+Config.MAX_ROUNDS = 9 -- a match also ends after this many rounds
+Config.RESULTS_TIME = 9
+Config.LOBBY_RESPAWN = 2
+Config.DUMMY_RESPAWN = 3
+Config.LOBBY_WEAPONS = 3 -- weapons lying around the lobby training area
+
+-- Economy / crates
+Config.START_COINS = 500
+Config.COINS_KO = 15
+Config.COINS_ROUND_WIN = 30
+Config.COINS_MATCH_WIN = 150
+Config.COINS_PLAYED = 20
+Config.CRATE_COST = 100
+Config.DUPE_REFUND = 25 -- coins back for a duplicate Common / Uncommon
+Config.ANNOUNCE_RARITY = 5 -- Legendary+ rolls get announced to the whole server
+Config.DATASTORE = "RagdollRumble_v1"
+Config.AUTOSAVE = 90
+
+-- Admins: anyone in Studio, the game owner (or group rank 250+), plus these user ids
+Config.ADMINS = {} :: { number }
+
 -- Bots
 Config.BOTS_ENABLED = true
 Config.TARGET_FIGHTERS = 4 -- bots fill empty slots up to this many fighters

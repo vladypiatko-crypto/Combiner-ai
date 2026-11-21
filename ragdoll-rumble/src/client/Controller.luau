@@ -231,6 +231,10 @@ local function impactFx(pos: Vector3, big: boolean)
 	Effects.spark(pos, Color3.new(1, 1, 1), if big then 14 else 8, if big then 50 else 32)
 	Effects.ring(pos, myColor(), if big then 4 else 2.4)
 	CameraRig.shake(if big then 0.3 else 0.14)
+	CameraRig.punchZoom(if big then 0.07 else 0.025)
+	if big then
+		Effects.stars(pos, Color3.fromRGB(255, 236, 150), 5)
+	end
 end
 
 local function punch()
@@ -259,6 +263,10 @@ local function swing(w: Weapons.Weapon)
 	Animator.trigger(fid(), "swing")
 	Event:FireServer({ t = "Act", kind = "swing" })
 	Audio.play("slash")
+	task.delay(0.06, function()
+		local d = aimDir()
+		Effects.slash(Controller.shoulder() + d * 2.4, Controller.aim, myColor(), Controller.facing, if w.key == "bonker" then 1.5 else 1.3)
+	end)
 	local hitSet: { [number]: boolean } = {}
 	for _, delay in { 0.05, 0.1, 0.16 } do
 		task.delay(delay, function()
