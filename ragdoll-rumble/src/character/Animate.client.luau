@@ -1,0 +1,3 @@
+-- Replaces Roblox's default "Animate" script on purpose.
+-- Ragdoll Rumble animates every fighter procedurally on each client
+-- (see StarterPlayerScripts > RumbleClient > Animator), so no default animations run.
