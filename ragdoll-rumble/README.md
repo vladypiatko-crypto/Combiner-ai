@@ -25,27 +25,30 @@ Also keep **Avatar type = R15**. The project already sets it, but if you publish
 Game Settings → Avatar.
 
 ### Live sync with Rojo
+
 ```bash
 rojo serve
 ```
+
 Then Connect in the Rojo plugin. To rebuild the place file:
+
 ```bash
 rojo build default.project.json -o build/RagdollRumble.rbxlx
 ```
 
 ## Controls
 
-| Action | Keyboard / mouse | Gamepad | Touch |
-| --- | --- | --- | --- |
-| Move | A / D | Left stick | ◀ ▶ |
-| Jump / double-jump flip | W / Space (again in the air) | A | JUMP |
-| Crouch / fast-fall | S | Stick down | ▼ |
-| Punch / shoot / swing | Left click (or J / Z) | R2 | HIT |
-| Block (tap = parry) | Right click / Shift (or K / X) | L2 | BLOCK |
-| Throw your weapon | F / Q | X / B | THROW |
-| Use a lobby station | E | Y | tap the prompt |
-| Controls help | H | Select | |
-| Admin panel | F2 or ` | | ADMIN button |
+| Action                  | Keyboard / mouse               | Gamepad    | Touch          |
+| ----------------------- | ------------------------------ | ---------- | -------------- |
+| Move                    | A / D                          | Left stick | ◀ ▶            |
+| Jump / double-jump flip | W / Space (again in the air)   | A          | JUMP           |
+| Crouch / fast-fall      | S                              | Stick down | ▼              |
+| Punch / shoot / swing   | Left click (or J / Z)          | R2         | HIT            |
+| Block (tap = parry)     | Right click / Shift (or K / X) | L2         | BLOCK          |
+| Throw your weapon       | F / Q                          | X / B      | THROW          |
+| Use a lobby station     | E                              | Y          | tap the prompt |
+| Controls help           | H                              | Select     |                |
+| Admin panel             | F2 or `                        |            | ADMIN button   |
 
 ## What's in it
 
@@ -85,15 +88,15 @@ rojo build default.project.json -o build/RagdollRumble.rbxlx
 
 ## Tweak it
 
-| File | What |
-| --- | --- |
-| `src/shared/Config.luau` | movement, damage, rounds, coins, crate cost, bots, admins |
-| `src/shared/Cosmetics.luau` | crate items and their "1 in N" odds |
-| `src/shared/Weapons.luau` | weapon stats |
-| `src/shared/Maps.luau` | arenas + the lobby layout |
-| `src/client/Animator.luau` | every animation |
-| `src/client/Audio.luau` | sound recipes (swap in your own `rbxassetid://` if you like) |
-| `blender/build_models.py` | the models. Run `blender --background --python blender/build_models.py` to regenerate `MeshData.luau` |
+| File                        | What                                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `src/shared/Config.luau`    | movement, damage, rounds, coins, crate cost, bots, admins                                             |
+| `src/shared/Cosmetics.luau` | crate items and their "1 in N" odds                                                                   |
+| `src/shared/Weapons.luau`   | weapon stats                                                                                          |
+| `src/shared/Maps.luau`      | arenas + the lobby layout                                                                             |
+| `src/client/Animator.luau`  | every animation                                                                                       |
+| `src/client/Audio.luau`     | sound recipes (swap in your own `rbxassetid://` if you like)                                          |
+| `blender/build_models.py`   | the models. Run `blender --background --python blender/build_models.py` to regenerate `MeshData.luau` |
 
 ## How it works
 
